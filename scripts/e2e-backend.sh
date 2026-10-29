@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Starts the API for end-to-end runs on https://localhost:5001 with test sign-in enabled (POST /auth/test-login).
 # The database is a clean signalchat_e2e, recreated on every run; the development database is never touched.
-# Migrations are applied by the API on startup (Development). Ctrl+C stops the API.
+# Migrations are applied by the API on startup (E2E). Ctrl+C stops the API.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
