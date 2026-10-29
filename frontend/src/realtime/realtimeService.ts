@@ -1,7 +1,9 @@
 import { api, type ConversationId, type Message } from '@/api'
 import { useConnectionStore } from '@/stores/connection'
+import { useDirectRequestsStore } from '@/stores/directRequests'
 import { useMessagesStore } from '@/stores/messages'
 import { usePresenceStore } from '@/stores/presence'
+import { useRoomsStore } from '@/stores/rooms'
 import { useTypingStore } from '@/stores/typing'
 import { normalizeMessageText } from '@/utils/messageText'
 
@@ -42,6 +44,8 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
   const presence = usePresenceStore()
   const typing = useTypingStore()
   const connection = useConnectionStore()
+  const rooms = useRoomsStore()
+  const directRequests = useDirectRequestsStore()
 
   const openConversationIds = new Set<ConversationId>()
   const lastTypingSentAt = new Map<ConversationId, number>()
@@ -65,7 +69,15 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
     await Promise.allSettled([
       ...ids.map((id) => messages.refreshLatest(id)),
       presence.loadSnapshot(),
+      rooms.refreshDirects(),
+      directRequests.load(),
     ])
+  }
+
+  /** The peer accepted our request: the chat is writable now, and its group is joined. */
+  async function handleRequestAccepted(conversationId: ConversationId): Promise<void> {
+    await rooms.markAccepted(conversationId).catch(() => undefined)
+    await openConversation(conversationId).catch(() => undefined)
   }
 
   /**
@@ -84,6 +96,8 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
     }),
     hub.on('PresenceChanged', (change) => presence.applyPresenceChanged(change)),
     hub.on('UserTyping', (event) => typing.applyUserTyping(event)),
+    hub.on('DirectRequestReceived', (event) => directRequests.applyReceived(event)),
+    hub.on('DirectRequestAccepted', (event) => void handleRequestAccepted(event.conversationId)),
     hub.onConnectionState((state) => connection.setState(state)),
     hub.onReconnected(() => void restoreAfterReconnect()),
     hub.onClosed(() => void handleServerClose()),

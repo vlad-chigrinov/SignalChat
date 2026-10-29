@@ -14,6 +14,7 @@ const HUB_ERROR_TEXT: Record<HubErrorCode, string> = {
   rate_limited: 'Слишком много сообщений подряд. Подождите немного.',
   too_many_groups: 'Открыто слишком много чатов. Закройте часть и попробуйте снова.',
   unauthenticated: 'Сессия истекла. Войдите снова.',
+  dm_not_accepted: 'Собеседник ещё не принял запрос.',
   unknown: GENERIC_ERROR,
 }
 

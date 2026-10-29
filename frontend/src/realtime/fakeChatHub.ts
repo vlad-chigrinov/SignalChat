@@ -5,6 +5,8 @@ import { HubCallError, type ChatHub, type Unsubscribe } from './chatHub'
 import {
   type ConnectionState,
   type ConversationMemberEvent,
+  type DirectRequestAcceptedEvent,
+  type DirectRequestReceivedEvent,
   type HubEventMap,
   type HubEventName,
   type UserTypingEvent,
@@ -36,6 +38,8 @@ export class FakeChatHub implements ChatHub {
     UserLeft: new Set(),
     UserTyping: new Set(),
     PresenceChanged: new Set(),
+    DirectRequestReceived: new Set(),
+    DirectRequestAccepted: new Set(),
   }
   private readonly typingSent: ConversationId[] = []
   private readonly queuedStartFailures: HubCallError[] = []
@@ -80,7 +84,7 @@ export class FakeChatHub implements ChatHub {
   async sendMessage(conversationId: ConversationId, text: string): Promise<Message> {
     this.requireConnected()
     const author = this.requireCaller()
-    requireConversationMember(author.id, conversationId)
+    requireWritable(author.id, conversationId)
     this.sentCounter += 1
     const message: Message = {
       id: `fake-${this.sentCounter}`,
@@ -135,6 +139,14 @@ export class FakeChatHub implements ChatHub {
 
   emitMemberJoined(event: ConversationMemberEvent): void {
     this.emit('UserJoined', event)
+  }
+
+  emitDirectRequestReceived(event: DirectRequestReceivedEvent): void {
+    this.emit('DirectRequestReceived', event)
+  }
+
+  emitDirectRequestAccepted(event: DirectRequestAcceptedEvent): void {
+    this.emit('DirectRequestAccepted', event)
   }
 
   /** Drops the connection and brings it back, as an automatic reconnect does. */
@@ -197,4 +209,19 @@ function requireConversationMember(userId: UserId, conversationId: ConversationI
   if (!isActiveMember(sharedMockStore(), conversationId, userId)) {
     throw new HubCallError('not_found')
   }
+}
+
+/**
+ * Writing is stricter than joining only for the writer of a request: until the recipient
+ * accepts, the writer gets `dm_not_accepted`; anyone else gets `not_found`.
+ */
+function requireWritable(userId: UserId, conversationId: ConversationId): void {
+  const store = sharedMockStore()
+  if (isActiveMember(store, conversationId, userId)) return
+  const direct = store.directs.get(conversationId)
+  const isWriterOfRequest = direct !== undefined && direct.initiatorId === userId
+  if (isWriterOfRequest && direct.memberIds.includes(userId)) {
+    throw new HubCallError('dm_not_accepted')
+  }
+  throw new HubCallError('not_found')
 }

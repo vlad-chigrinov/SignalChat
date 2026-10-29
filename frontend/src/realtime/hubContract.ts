@@ -21,6 +21,8 @@ export const HUB_EVENTS = {
   UserLeft: 'UserLeft',
   UserTyping: 'UserTyping',
   PresenceChanged: 'PresenceChanged',
+  DirectRequestReceived: 'DirectRequestReceived',
+  DirectRequestAccepted: 'DirectRequestAccepted',
 } as const
 
 /** The client hides a typing indicator after this long without a new `UserTyping`. */
@@ -45,6 +47,7 @@ export const HUB_ERROR_CODES = [
   'rate_limited',
   'too_many_groups',
   'unauthenticated',
+  'dm_not_accepted',
 ] as const
 
 export type HubErrorCode = (typeof HUB_ERROR_CODES)[number] | 'unknown'
@@ -61,6 +64,20 @@ export interface ConversationMemberEvent {
   user: UserSummary
 }
 
+/** Sent to the recipient of a request, when it is created or reopened. */
+export interface DirectRequestReceivedEvent {
+  conversationId: ConversationId
+  from: UserSummary
+  text: string
+  createdAt: string
+}
+
+/** Sent to the writer of a request, when the recipient accepts it. A decline sends nothing. */
+export interface DirectRequestAcceptedEvent {
+  conversationId: ConversationId
+  peer: UserSummary
+}
+
 /** Payload of each server event the client subscribes to. */
 export interface HubEventMap {
   MessageReceived: Message
@@ -68,6 +85,8 @@ export interface HubEventMap {
   UserLeft: ConversationMemberEvent
   UserTyping: UserTypingEvent
   PresenceChanged: PresenceChange
+  DirectRequestReceived: DirectRequestReceivedEvent
+  DirectRequestAccepted: DirectRequestAcceptedEvent
 }
 
 export type HubEventName = keyof HubEventMap

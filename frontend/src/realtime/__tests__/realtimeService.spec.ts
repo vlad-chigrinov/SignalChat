@@ -6,8 +6,10 @@ import { mockCurrentUser } from '@/api/mock/mockData'
 import { resetSharedMockStore } from '@/api/mock/mockHistories'
 import { MAX_MESSAGE_LENGTH } from '@/utils/messageText'
 import { useConnectionStore } from '@/stores/connection'
+import { useDirectRequestsStore } from '@/stores/directRequests'
 import { useMessagesStore } from '@/stores/messages'
 import { usePresenceStore } from '@/stores/presence'
+import { useRoomsStore } from '@/stores/rooms'
 import { useTypingStore } from '@/stores/typing'
 
 import { HubCallError, NotConnectedError } from '../chatHub'
@@ -251,6 +253,40 @@ describe('realtime service', () => {
       await service.closeConversation(ROOM)
 
       expect(useTypingStore().typingUserIds(ROOM)).toEqual([])
+    })
+  })
+
+  describe('direct requests', () => {
+    it('lists a live request in the incoming list', async () => {
+      await service.connect()
+
+      hub.emitDirectRequestReceived({
+        conversationId: 'dm-live',
+        from: PEER,
+        text: 'Привет',
+        createdAt: '2026-10-29T10:00:00.000Z',
+      })
+
+      expect(useDirectRequestsStore().incoming.map((item) => item.id)).toEqual(['dm-live'])
+    })
+
+    it('marks our request accepted and joins its group', async () => {
+      await service.connect()
+      const rooms = useRoomsStore()
+      rooms.upsertDirect({
+        kind: 'direct',
+        id: DM,
+        peer: PEER,
+        status: 'pending',
+        lastMessage: null,
+      })
+
+      hub.emitDirectRequestAccepted({ conversationId: DM, peer: PEER })
+      await flushPromises()
+      await flushPromises()
+
+      expect(rooms.findConversation(DM)).toMatchObject({ status: 'accepted' })
+      expect(hub.joinedConversations()).toEqual([DM])
     })
   })
 

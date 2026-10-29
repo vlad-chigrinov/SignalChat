@@ -4,6 +4,7 @@ import { defineStore } from 'pinia'
 import { api, type CurrentUser } from '@/api'
 import { errorMessage } from '@/utils/errorMessage'
 
+import { useDirectRequestsStore } from './directRequests'
 import { useMessagesStore } from './messages'
 import { usePresenceStore } from './presence'
 import { useRoomsStore } from './rooms'
@@ -55,6 +56,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = null
       status.value = 'anonymous'
       useRoomsStore().reset()
+      useDirectRequestsStore().reset()
       useMessagesStore().reset()
       usePresenceStore().reset()
     }

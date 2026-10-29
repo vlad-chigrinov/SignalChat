@@ -104,15 +104,41 @@ export const useRoomsStore = defineStore('rooms', () => {
     rooms.value = rooms.value.filter((room) => room.id !== roomId)
   }
 
+  /** Adds a direct conversation, or replaces the listed one with the same id. */
+  function upsertDirect(direct: DirectConversation): void {
+    const others = directConversations.value.filter((item) => item.id !== direct.id)
+    directConversations.value = [...others, direct]
+  }
+
   /**
    * Writes the first message to a user: a request, unless the chat exists already. The answer is
    * listed with its status (`pending` while the peer has not answered).
    */
   async function sendDirectRequest(userId: UserId, text: string): Promise<DirectConversation> {
     const direct = await api.sendDirectRequest(userId, text)
-    const others = directConversations.value.filter((item) => item.id !== direct.id)
-    directConversations.value = [...others, direct]
+    upsertDirect(direct)
     return direct
+  }
+
+  /**
+   * The peer accepted the request this user wrote: the chat is open for writing now. A chat that
+   * is not listed yet is loaded with the list.
+   */
+  async function markAccepted(conversationId: ConversationId): Promise<void> {
+    const direct = directConversations.value.find((item) => item.id === conversationId)
+    if (direct) {
+      direct.status = 'accepted'
+      return
+    }
+    await load({ force: true })
+  }
+
+  /**
+   * Reloads the direct conversations without the loading state: after a reconnect, so that a
+   * request accepted meanwhile shows up, and the room list does not flicker.
+   */
+  async function refreshDirects(): Promise<void> {
+    directConversations.value = await api.listDirectConversations()
   }
 
   function reset(): void {
@@ -139,7 +165,10 @@ export const useRoomsStore = defineStore('rooms', () => {
     joinRoom,
     leaveRoom,
     forgetRoom,
+    upsertDirect,
     sendDirectRequest,
+    markAccepted,
+    refreshDirects,
     reset,
   }
 })
