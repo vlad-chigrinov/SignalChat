@@ -10,10 +10,14 @@ public sealed class DirectConversationService(SignalChatDbContext dbContext, Tim
     {
         var rows = await RowsFor(userId).ToListAsync(cancellationToken);
         var peers = await LoadPeersAsync(rows.Select(row => row.PeerId).Distinct().ToList(), cancellationToken);
+        var lastMessages = await LastMessageLoader.LoadAsync(
+            dbContext, rows.Select(row => row.LastMessageId).OfType<Guid>().ToList(), cancellationToken);
 
         return rows
-            .OrderByDescending(row => row.LastMessage?.SentAt ?? row.CreatedAt)
-            .Select(row => new DirectConversationSummary(row.Id, peers[row.PeerId], row.LastMessage))
+            .Select(row => (Row: row, Summary: new DirectConversationSummary(
+                row.Id, peers[row.PeerId], LastMessageLoader.Find(lastMessages, row.LastMessageId))))
+            .OrderByDescending(item => item.Summary.LastMessage?.SentAt ?? item.Row.CreatedAt)
+            .Select(item => item.Summary)
             .ToList();
     }
 
@@ -48,15 +52,26 @@ public sealed class DirectConversationService(SignalChatDbContext dbContext, Tim
             }
         }
 
-        var row = await RowsFor(userId).SingleAsync(item => item.Id == conversation.Id, cancellationToken);
+        var row = await RowsFor(userId, conversation.Id).SingleAsync(cancellationToken);
         var peer = (await LoadPeersAsync([row.PeerId], cancellationToken))[row.PeerId];
-        return new DirectConversationSummary(row.Id, peer, row.LastMessage);
+        var lastMessages = await LastMessageLoader.LoadAsync(dbContext, CollectIds(row.LastMessageId), cancellationToken);
+        return new DirectConversationSummary(row.Id, peer, LastMessageLoader.Find(lastMessages, row.LastMessageId));
     }
 
-    /// <summary>The caller's conversations with the peer id and the newest message, in one statement.</summary>
-    private IQueryable<DirectRow> RowsFor(Guid userId) =>
-        dbContext.DirectConversations.AsNoTracking()
-            .Where(conversation => conversation.UserLowId == userId || conversation.UserHighId == userId)
+    /// <summary>
+    /// The caller's conversations (optionally one of them) with the peer id and the id of the newest message.
+    /// The id filter sits before the projection: filtering a projection that holds a subquery does not translate.
+    /// </summary>
+    private IQueryable<DirectRow> RowsFor(Guid userId, Guid? conversationId = null)
+    {
+        var conversations = dbContext.DirectConversations.AsNoTracking()
+            .Where(conversation => conversation.UserLowId == userId || conversation.UserHighId == userId);
+        if (conversationId is { } id)
+        {
+            conversations = conversations.Where(conversation => conversation.Id == id);
+        }
+
+        return conversations
             .Select(conversation => new DirectRow(
                 conversation.Id,
                 conversation.UserLowId == userId ? conversation.UserHighId : conversation.UserLowId,
@@ -65,8 +80,9 @@ public sealed class DirectConversationService(SignalChatDbContext dbContext, Tim
                     .Where(message => message.DirectConversationId == conversation.Id && message.DeletedAt == null)
                     .OrderByDescending(message => message.CreatedAt)
                     .ThenByDescending(message => message.Id)
-                    .Select(message => new LastMessageView(message.AuthorId, message.Text, message.CreatedAt))
+                    .Select(message => (Guid?)message.Id)
                     .FirstOrDefault()));
+    }
 
     private Task<DirectConversation?> FindPairAsync(Guid lowId, Guid highId, CancellationToken cancellationToken) =>
         dbContext.DirectConversations.AsNoTracking()
@@ -81,5 +97,7 @@ public sealed class DirectConversationService(SignalChatDbContext dbContext, Tim
         return users.ToDictionary(user => user.Id);
     }
 
-    private sealed record DirectRow(Guid Id, Guid PeerId, DateTimeOffset CreatedAt, LastMessageView? LastMessage);
+    private static IReadOnlyCollection<Guid> CollectIds(Guid? id) => id is { } value ? [value] : [];
+
+    private sealed record DirectRow(Guid Id, Guid PeerId, DateTimeOffset CreatedAt, Guid? LastMessageId);
 }

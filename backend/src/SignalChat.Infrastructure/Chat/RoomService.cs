@@ -44,9 +44,9 @@ public sealed class RoomService(SignalChatDbContext dbContext, TimeProvider time
 
     public async Task<IReadOnlyList<RoomSummary>> ListMineAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var rooms = await dbContext.Rooms.AsNoTracking()
+        var rows = await dbContext.Rooms.AsNoTracking()
             .Where(room => dbContext.RoomMembers.Any(member => member.RoomId == room.Id && member.UserId == userId))
-            .Select(room => new RoomSummary(
+            .Select(room => new RoomRow(
                 room.Id,
                 room.Name,
                 room.Description,
@@ -56,11 +56,20 @@ public sealed class RoomService(SignalChatDbContext dbContext, TimeProvider time
                     .Where(message => message.RoomId == room.Id && message.DeletedAt == null)
                     .OrderByDescending(message => message.CreatedAt)
                     .ThenByDescending(message => message.Id)
-                    .Select(message => new LastMessageView(message.AuthorId, message.Text, message.CreatedAt))
+                    .Select(message => (Guid?)message.Id)
                     .FirstOrDefault()))
             .ToListAsync(cancellationToken);
+        var lastMessages = await LastMessageLoader.LoadAsync(
+            dbContext, rows.Select(row => row.LastMessageId).OfType<Guid>().ToList(), cancellationToken);
 
-        return rooms
+        return rows
+            .Select(row => new RoomSummary(
+                row.Id,
+                row.Name,
+                row.Description,
+                row.MemberCount,
+                row.CreatedAt,
+                LastMessageLoader.Find(lastMessages, row.LastMessageId)))
             .OrderByDescending(room => room.LastMessage?.SentAt ?? room.CreatedAt)
             .ToList();
     }
@@ -140,6 +149,9 @@ public sealed class RoomService(SignalChatDbContext dbContext, TimeProvider time
             await dbContext.Rooms.Where(room => room.Id == roomId).ExecuteDeleteAsync(cancellationToken);
         }
     }
+
+    private sealed record RoomRow(
+        Guid Id, string Name, string Description, int MemberCount, DateTimeOffset CreatedAt, Guid? LastMessageId);
 
     private Task<bool> NameExistsAsync(string normalizedName, CancellationToken cancellationToken) =>
         dbContext.Rooms.AnyAsync(room => room.NormalizedName == normalizedName, cancellationToken);
