@@ -73,7 +73,8 @@ There is no "stopped typing" event. The client hides the typing hint after its o
 ## Groups (server side only)
 
 - `room:{id}` for rooms, `dm:{id}` for direct conversations, `user:{userId}` for presence. Every connection joins its `user:` group on connect.
-- Leaving a room over REST also removes the user's open connections from its group, so a former member stops receiving messages at once.
+- Leaving a room over REST (`POST /api/rooms/{id}/leave`) also removes the user's open connections from its group and forgets the room on each of them. The remaining members get `UserLeft`; the leaver does not.
+- After a REST join the client must call `JoinRoom` again on the same connection (no reconnect needed). `JoinRoom` is idempotent, and it joins the group again only because the earlier leave forgot the room.
 
 ## Error codes
 
