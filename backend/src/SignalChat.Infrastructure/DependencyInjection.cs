@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SignalChat.Infrastructure.Chat;
 using SignalChat.Infrastructure.Persistence;
 using SignalChat.Infrastructure.Security;
 using SignalChat.Infrastructure.Users;
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddSingleton<IPersonalDataCipher>(new AesGcmPersonalDataCipher(personalDataKey));
         services.AddDbContext<SignalChatDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IUserAccountService, UserAccountService>();
+        services.AddChatServices();
 
         services.AddHealthChecks()
             .AddDbContextCheck<SignalChatDbContext>("database", tags: [ReadinessTag]);
