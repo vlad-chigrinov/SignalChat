@@ -4,11 +4,13 @@ import { defineStore } from 'pinia'
 import { api, type ConversationId, type Message } from '@/api'
 import { errorMessage } from '@/utils/errorMessage'
 import { mergeMessages } from '@/utils/mergeMessages'
+import { normalizeMessageText } from '@/utils/messageText'
 
 import { useRoomsStore } from './rooms'
 
+export { MAX_MESSAGE_LENGTH } from '@/utils/messageText'
+
 export const MESSAGE_PAGE_SIZE = 30
-export const MAX_MESSAGE_LENGTH = 2000
 
 export interface ConversationHistory {
   items: Message[]
@@ -69,6 +71,22 @@ export const useMessagesStore = defineStore('messages', () => {
     return fetchPage(conversationId, history.nextCursor)
   }
 
+  /**
+   * Re-reads the newest page after a reconnect and merges it. Older pages already loaded
+   * stay, and the cursor for them is kept. Best effort: on failure the history is untouched.
+   */
+  async function refreshLatest(conversationId: ConversationId): Promise<void> {
+    const history = ensureHistory(conversationId)
+    try {
+      const page = await api.getMessages(conversationId, { before: null, limit: MESSAGE_PAGE_SIZE })
+      history.items = mergeMessages(history.items, page.items)
+      if (!history.hasLoadedLatest) history.nextCursor = page.nextCursor
+      history.hasLoadedLatest = true
+    } catch {
+      // The next reconnect or opening the chat tries again.
+    }
+  }
+
   /** Real-time entry point (SignalR, #7): a message was posted in a conversation. */
   function applyIncomingMessage(message: Message): void {
     const history = ensureHistory(message.conversationId)
@@ -77,10 +95,7 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   async function send(conversationId: ConversationId, rawText: string): Promise<void> {
-    const text = rawText.trim()
-    if (text.length === 0 || text.length > MAX_MESSAGE_LENGTH) {
-      throw new RangeError(`Message must be 1..${MAX_MESSAGE_LENGTH} characters`)
-    }
+    const text = normalizeMessageText(rawText)
     const message = await api.sendMessage(conversationId, text)
     applyIncomingMessage(message)
   }
@@ -89,5 +104,14 @@ export const useMessagesStore = defineStore('messages', () => {
     histories.value = {}
   }
 
-  return { histories, historyOf, loadLatest, loadOlder, applyIncomingMessage, send, reset }
+  return {
+    histories,
+    historyOf,
+    loadLatest,
+    loadOlder,
+    refreshLatest,
+    applyIncomingMessage,
+    send,
+    reset,
+  }
 })
