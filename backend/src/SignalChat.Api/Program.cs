@@ -16,6 +16,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSessionAuthentication(builder.Configuration);
 builder.Services.AddFrontendCors(frontend);
 builder.Services.AddProblemDetails();
+builder.Services.AddSingleton<IHubConnectionRegistry, HubConnectionRegistry>();
 builder.Services.AddSignalR();
 
 var app = builder.Build();

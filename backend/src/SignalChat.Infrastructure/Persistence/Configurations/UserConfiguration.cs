@@ -23,5 +23,7 @@ internal sealed class UserConfiguration(IPersonalDataCipher cipher) : IEntityTyp
         builder.Property(user => user.AvatarUrl).HasMaxLength(User.AvatarUrlMaxLength);
         builder.Property(user => user.CreatedAt).IsRequired();
         builder.Property(user => user.LastLoginAt).IsRequired();
+        // Existing rows get the initial version when the column is added.
+        builder.Property(user => user.SessionVersion).IsRequired().HasDefaultValue(User.InitialSessionVersion);
     }
 }

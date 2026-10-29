@@ -32,8 +32,9 @@ public static class GoogleSignInEvents
         var profile = new GoogleProfile(subject, email, claims.FindFirst(NameClaim)?.Value, claims.FindFirst(PictureClaim)?.Value);
         var user = await accounts.SignInWithGoogleAsync(profile, context.HttpContext.RequestAborted);
 
-        // Replace Google's claims: the cookie carries only our own user id and display name.
-        context.Principal = SessionPrincipal.Create(user);
+        // Replace Google's claims: the cookie carries only our own user id, display name and session claims.
+        var now = context.HttpContext.RequestServices.GetRequiredService<TimeProvider>().GetUtcNow();
+        context.Principal = SessionPrincipal.Create(user, now);
         context.Properties!.IsPersistent = true;
     }
 

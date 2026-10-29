@@ -10,6 +10,7 @@ public sealed class User
     public const int DisplayNameMaxLength = 100;
     public const int AvatarUrlMaxLength = 2048;
     public const string FallbackDisplayName = "SignalChat user";
+    public const int InitialSessionVersion = 1;
 
     private User()
     {
@@ -31,6 +32,15 @@ public sealed class User
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset LastLoginAt { get; private set; }
+
+    /// <summary>
+    /// Every session cookie carries the version it was issued at. Bumping it invalidates all of
+    /// this user's sessions at once, on every device.
+    /// </summary>
+    public int SessionVersion { get; private set; } = InitialSessionVersion;
+
+    /// <summary>Revokes every existing session of this user (logout, suspected cookie theft).</summary>
+    public void RevokeSessions() => SessionVersion++;
 
     public static User RegisterFromGoogle(
         string googleSubject, string email, string? displayName, string? avatarUrl, DateTimeOffset now)

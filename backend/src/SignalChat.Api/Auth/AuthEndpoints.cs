@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using SignalChat.Api.Configuration;
+using SignalChat.Api.Hubs;
 using SignalChat.Infrastructure.Users;
 
 namespace SignalChat.Api.Auth;
@@ -24,15 +25,31 @@ public static class AuthEndpoints
                     detail: "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.",
                     statusCode: StatusCodes.Status503ServiceUnavailable));
 
-        group.MapPost("/logout", async (HttpContext http) =>
-        {
-            await http.SignOutAsync(AuthSchemes.Session);
-            return Results.NoContent();
-        });
+        group.MapPost("/logout", LogoutAsync);
 
         group.MapGet("/me", GetCurrentUserAsync).RequireAuthorization();
 
         return endpoints;
+    }
+
+    /// <summary>
+    /// Revokes every session of the user (all devices), clears this cookie and cuts the live hub connections.
+    /// A request without a valid session only clears the cookie.
+    /// </summary>
+    private static async Task<IResult> LogoutAsync(
+        HttpContext http, IUserAccountService accounts, IHubConnectionRegistry hubs, CancellationToken cancellationToken)
+    {
+        if (SessionPrincipal.TryRead(http.User, out var session))
+        {
+            await accounts.RevokeSessionsAsync(session.UserId, cancellationToken);
+            await http.SignOutAsync(AuthSchemes.Session);
+            hubs.AbortAll(session.UserId.ToString());
+        }
+        else
+        {
+            await http.SignOutAsync(AuthSchemes.Session);
+        }
+        return Results.NoContent();
     }
 
     private static async Task<IResult> GetCurrentUserAsync(

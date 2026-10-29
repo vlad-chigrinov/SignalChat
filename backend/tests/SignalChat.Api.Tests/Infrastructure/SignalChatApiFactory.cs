@@ -41,6 +41,9 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
 
     public FakeGoogle Google { get; } = new();
 
+    /// <summary>The API's clock: tests move it to exercise the absolute session lifetime.</summary>
+    public MutableTimeProvider Clock { get; } = new(DateTimeOffset.UtcNow);
+
     protected virtual bool GoogleConfigured => true;
 
     public HttpClient CreateApiClient() => CreateClient(new WebApplicationFactoryClientOptions
@@ -61,7 +64,8 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
         var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
         http.Request.Scheme = ApiBaseAddress.Scheme;
         http.Request.Host = new HostString(ApiBaseAddress.Host);
-        await http.SignInAsync(AuthSchemes.Session, SessionPrincipal.Create(user), new AuthenticationProperties { IsPersistent = true });
+        await http.SignInAsync(
+            AuthSchemes.Session, SessionPrincipal.Create(user, Clock.GetUtcNow()), new AuthenticationProperties { IsPersistent = true });
 
         return (user, SetCookies.Find(http.Response.Headers.SetCookie, AuthSchemes.SessionCookieName)!.NameValue());
     }
@@ -80,6 +84,7 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             ReplaceDatabaseWithSqlite(services);
+            services.AddSingleton<TimeProvider>(Clock);
             services.PostConfigure<OpenIdConnectOptions>(AuthSchemes.Google, options =>
             {
                 options.Configuration = Google.Configuration;

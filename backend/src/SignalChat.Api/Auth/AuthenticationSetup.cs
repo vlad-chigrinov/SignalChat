@@ -9,7 +9,6 @@ public static class AuthenticationSetup
 {
     private const string GoogleAuthority = "https://accounts.google.com";
     private const string GoogleDisplayName = "Google";
-    private static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(14);
 
     public static IServiceCollection AddSessionAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
@@ -38,8 +37,11 @@ public static class AuthenticationSetup
         // Strict: never sent on cross-site requests, the first CSRF barrier (OriginGuard is the second).
         options.Cookie.SameSite = SameSiteMode.Strict;
         options.Cookie.Path = "/";
-        options.ExpireTimeSpan = SessionLifetime;
+        options.ExpireTimeSpan = SessionPolicy.SlidingSessionLifetime;
         options.SlidingExpiration = true;
+
+        // Every request with the cookie is checked against the database (version, absolute lifetime).
+        options.Events.OnValidatePrincipal = SessionValidator.ValidateAsync;
 
         // An API answers with status codes, never with a redirect to a login page.
         options.Events.OnRedirectToLogin = context => WriteStatus(context.Response, StatusCodes.Status401Unauthorized);

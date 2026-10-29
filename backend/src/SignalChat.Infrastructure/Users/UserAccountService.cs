@@ -24,6 +24,25 @@ public sealed class UserAccountService(SignalChatDbContext dbContext, TimeProvid
     public Task<User?> FindByIdAsync(Guid userId, CancellationToken cancellationToken) =>
         dbContext.Users.AsNoTracking().SingleOrDefaultAsync(user => user.Id == userId, cancellationToken);
 
+    public Task<int?> FindSessionVersionAsync(Guid userId, CancellationToken cancellationToken) =>
+        dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => (int?)user.SessionVersion)
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task RevokeSessionsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var user = await dbContext.Users.SingleOrDefaultAsync(existing => existing.Id == userId, cancellationToken);
+        if (user is null)
+        {
+            return;
+        }
+
+        user.RevokeSessions();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<User> UpsertAsync(GoogleProfile profile, CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();

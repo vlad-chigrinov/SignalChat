@@ -51,6 +51,11 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("SessionVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.HasKey("Id");
 
                     b.HasIndex("GoogleSubject")
