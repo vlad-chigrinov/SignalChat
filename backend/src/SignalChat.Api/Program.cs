@@ -11,6 +11,9 @@ DotEnvLoader.LoadInDevelopment(Directory.GetCurrentDirectory());
 
 var builder = WebApplication.CreateBuilder(args);
 
+var e2eTestAuth = E2eTestAuthSettings.FromConfiguration(builder.Configuration);
+e2eTestAuth.EnsureAllowedIn(builder.Environment.EnvironmentName);
+
 var frontend = FrontendSettings.FromConfiguration(builder.Configuration);
 builder.Services.AddSingleton(frontend);
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -37,6 +40,10 @@ app.UseAuthorization();
 
 app.MapHealthEndpoints();
 app.MapAuthEndpoints();
+if (e2eTestAuth.Enabled)
+{
+    app.MapTestLoginEndpoints();
+}
 app.MapHub<ChatHub>(ChatHub.Route);
 app.MapChatEndpoints();
 

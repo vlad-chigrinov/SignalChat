@@ -51,6 +51,10 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
 
     protected virtual bool GoogleConfigured => true;
 
+    protected virtual string EnvironmentName => "Testing";
+
+    protected virtual bool E2eTestAuthEnabled => false;
+
     public HttpClient CreateApiClient() => CreateClient(new WebApplicationFactoryClientOptions
     {
         BaseAddress = ApiBaseAddress,
@@ -77,7 +81,8 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(EnvironmentName);
+        builder.UseSetting(E2eTestAuthSettings.FlagKey, E2eTestAuthEnabled ? "true" : "false");
         builder.UseSetting("ConnectionStrings:Default", UnusedPostgres);
         builder.UseSetting("Database:MigrateOnStartup", "false");
         builder.UseSetting("PII_ENCRYPTION_KEY", TestPersonalDataKey);
