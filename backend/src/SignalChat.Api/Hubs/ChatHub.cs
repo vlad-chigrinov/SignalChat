@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using SignalChat.Api.Auth;
 using SignalChat.Api.Chat;
 using SignalChat.Api.Chat.Dto;
@@ -18,14 +19,14 @@ namespace SignalChat.Api.Hubs;
 public sealed class ChatHub(
     IHubConnectionRegistry connections,
     HubSessionGuard sessionGuard,
-    IPresenceTracker presence,
-    PresenceNotifier presenceNotifier,
+    PresenceAnnouncer presence,
     IConversationAccess access,
     IUserDirectory users,
     ChatMessaging messaging,
     ConversationJoin joins,
     IMembershipChangeRateLimiter membershipLimiter,
-    ITypingThrottle typingThrottle) : Hub<IChatClient>
+    ITypingThrottle typingThrottle,
+    ILogger<ChatHub> logger) : Hub<IChatClient>
 {
     public const string Route = "/hubs/chat";
 
@@ -40,7 +41,14 @@ public sealed class ChatHub(
         // Register first, then re-check the session. A logout that lands before the check aborts this connection
         // (it is already registered); one that lands after the check finds it in the registry. No window is left.
         var joined = new ConcurrentDictionary<Guid, ConversationRef>();
-        connections.Register(Context.UserIdentifier!, Context, joined);
+        if (!connections.TryRegister(Context.UserIdentifier!, Context, joined, ChatHubLimits.MaxConnectionsPerUser))
+        {
+            // The open connections stay; only this new one is refused.
+            logger.LogWarning("Hub connection refused: the user already has the maximum number of open connections.");
+            Context.Abort();
+            return;
+        }
+
         ChatConnectionState.Attach(Context, joined);
         if (!await sessionGuard.IsStillValidAsync(Context.User!, Context.ConnectionAborted))
         {
@@ -50,14 +58,10 @@ public sealed class ChatHub(
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, ChatGroups.User(userId));
-        // Mark before notifying: if the notify is cancelled or the connection drops during it, the disconnect
+        // Mark before counting: if the count is cancelled or the connection drops during it, the disconnect
         // still finds the mark and closes the presence count. Otherwise the user would stay "online" forever.
-        var firstConnection = presence.ConnectionOpened(userId);
         ChatConnectionState.MarkPresenceOpened(Context);
-        if (firstConnection)
-        {
-            await presenceNotifier.NotifyAsync(userId, isOnline: true, Context.ConnectionAborted);
-        }
+        await presence.ConnectedAsync(userId);
 
         await base.OnConnectedAsync();
     }
@@ -69,10 +73,9 @@ public sealed class ChatHub(
         {
             connections.Unregister(userIdentifier, Context.ConnectionId);
             if (ChatConnectionState.TakePresenceOpened(Context)
-                && SessionPrincipal.TryGetUserId(Context.User!, out var userId)
-                && presence.ConnectionClosed(userId))
+                && SessionPrincipal.TryGetUserId(Context.User!, out var userId))
             {
-                await presenceNotifier.NotifyAsync(userId, isOnline: false, CancellationToken.None);
+                await presence.DisconnectedAsync(userId);
             }
         }
 

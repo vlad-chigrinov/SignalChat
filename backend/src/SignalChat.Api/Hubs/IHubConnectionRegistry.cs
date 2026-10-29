@@ -10,7 +10,12 @@ namespace SignalChat.Api.Hubs;
 /// </summary>
 public interface IHubConnectionRegistry
 {
-    void Register(string userId, HubCallerContext connection, ConcurrentDictionary<Guid, ConversationRef> joined);
+    /// <summary>
+    /// Adds the connection unless the user already has <paramref name="maxConnections"/> open ones. The check and the
+    /// add are one step, so two connections racing for the last slot cannot both get it. False when refused.
+    /// </summary>
+    bool TryRegister(
+        string userId, HubCallerContext connection, ConcurrentDictionary<Guid, ConversationRef> joined, int maxConnections);
 
     void Unregister(string userId, string connectionId);
 

@@ -6,8 +6,8 @@ namespace SignalChat.Api.Hubs;
 
 /// <summary>
 /// Process-wide registry (singleton). Every mutation runs under one lock, so a user's inner map is never
-/// dropped while a connection is being added to it. The lock is held only for dictionary work; the
-/// connections are aborted outside it.
+/// dropped while a connection is being added to it, and the connection cap is checked without a gap.
+/// The lock is held only for dictionary work; the connections are aborted outside it.
 /// </summary>
 public sealed class HubConnectionRegistry : IHubConnectionRegistry
 {
@@ -15,13 +15,20 @@ public sealed class HubConnectionRegistry : IHubConnectionRegistry
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, HubConnectionEntry>> _connectionsByUser =
         new(StringComparer.Ordinal);
 
-    public void Register(string userId, HubCallerContext connection, ConcurrentDictionary<Guid, ConversationRef> joined)
+    public bool TryRegister(
+        string userId, HubCallerContext connection, ConcurrentDictionary<Guid, ConversationRef> joined, int maxConnections)
     {
         lock (_gate)
         {
             var connections = _connectionsByUser.GetOrAdd(
                 userId, _ => new ConcurrentDictionary<string, HubConnectionEntry>(StringComparer.Ordinal));
+            if (connections.Count >= maxConnections)
+            {
+                return false;
+            }
+
             connections[connection.ConnectionId] = new HubConnectionEntry(connection.ConnectionId, connection, joined);
+            return true;
         }
     }
 

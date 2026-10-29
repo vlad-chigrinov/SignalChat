@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using SignalChat.Api.Hubs;
 using SignalChat.Api.Tests.Chat;
 using SignalChat.Api.Tests.Infrastructure;
@@ -28,6 +29,9 @@ public sealed class ChatHubPresenceTests
         await firstTab.DisposeAsync();
         await presence.AssertSilenceAsync();
         await secondTab.DisposeAsync();
+        var announcer = factory.Services.GetRequiredService<PresenceAnnouncer>();
+        await Eventually.UntilAsync(() => announcer.HasPendingOffline(owner.Id), "the offline grace period to start");
+        factory.Clock.Advance(ChatHubLimits.PresenceOfflineGrace);
         var offline = await presence.NextAsync();
 
         Assert.Equal(owner.Id, online.UserId);

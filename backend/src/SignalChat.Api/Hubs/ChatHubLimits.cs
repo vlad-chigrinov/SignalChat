@@ -15,11 +15,17 @@ public static class ChatHubLimits
 
     public static readonly TimeSpan MembershipChangeWindow = TimeSpan.FromSeconds(10);
 
+    /// <summary>Open hub connections one user may hold at the same time (tabs and devices). Further ones are refused.</summary>
+    public const int MaxConnectionsPerUser = 5;
+
     /// <summary>Conversations one connection may be joined to at the same time.</summary>
     public const int MaxJoinedConversationsPerConnection = 100;
 
     /// <summary>Minimum gap between two accepted typing signals of one user in one conversation.</summary>
     public static readonly TimeSpan TypingThrottle = TimeSpan.FromSeconds(2);
+
+    /// <summary>How long a user's last closed connection keeps them online before "offline" is announced.</summary>
+    public static readonly TimeSpan PresenceOfflineGrace = TimeSpan.FromSeconds(5);
 
     public const int MaxReceiveMessageSizeBytes = 32 * 1024;
 }

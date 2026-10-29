@@ -15,7 +15,7 @@ public static class PresenceEndpoints
     }
 
     private static async Task<IResult> OnlinePeersAsync(
-        ClaimsPrincipal user, IPeerDirectory peers, IPresenceTracker presence, CancellationToken cancellationToken)
+        ClaimsPrincipal user, IPeerDirectory peers, PresenceAnnouncer presence, CancellationToken cancellationToken)
     {
         if (!SessionPrincipal.TryGetUserId(user, out var userId))
         {
