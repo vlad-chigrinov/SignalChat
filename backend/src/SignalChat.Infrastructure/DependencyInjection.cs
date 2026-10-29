@@ -13,9 +13,10 @@ public static class DependencyInjection
     /// <summary>Tag of health checks that need external dependencies (readiness, not liveness).</summary>
     public const string ReadinessTag = "ready";
 
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services, IConfiguration configuration, bool requireTlsByDefault = false)
     {
-        var connectionString = PostgresConnectionString.Resolve(configuration);
+        var connectionString = PostgresConnectionString.Resolve(configuration, requireTlsByDefault);
         var personalDataKey = PersonalDataKey.FromConfiguration(configuration);
 
         services.AddSingleton(TimeProvider.System);

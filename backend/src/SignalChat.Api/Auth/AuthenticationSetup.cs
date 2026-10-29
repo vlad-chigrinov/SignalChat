@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using SignalChat.Api.Configuration;
 
 namespace SignalChat.Api.Auth;
 
@@ -10,11 +11,12 @@ public static class AuthenticationSetup
     private const string GoogleAuthority = "https://accounts.google.com";
     private const string GoogleDisplayName = "Google";
 
-    public static IServiceCollection AddSessionAuthentication(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddSessionAuthentication(
+        this IServiceCollection services, IConfiguration configuration, bool isProduction)
     {
         var google = GoogleSettings.FromConfiguration(configuration);
         services.AddSingleton(google);
-        services.AddDataProtection().SetApplicationName("SignalChat");
+        DataProtectionSettings.FromConfiguration(configuration, isProduction).ApplyTo(services.AddDataProtection());
 
         var authentication = services
             .AddAuthentication(AuthSchemes.Session)

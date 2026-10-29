@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
@@ -14,6 +15,7 @@ using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using SignalChat.Api.Auth;
 using SignalChat.Api.Chat.RateLimiting;
+using SignalChat.Api.Configuration;
 using SignalChat.Domain.Users;
 using SignalChat.Infrastructure.Persistence;
 using SignalChat.Infrastructure.Users;
@@ -63,6 +65,18 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
     /// <summary>Requests per minute allowed by every REST rate limit. Lowered only by a factory built to test the limit.</summary>
     protected virtual int RestPermitsPerMinute => UnboundedRestPermitsPerMinute;
 
+    /// <summary>The <c>AllowedHosts</c> the host runs with; production sets the public domain here.</summary>
+    protected virtual string AllowedHosts => "localhost";
+
+    /// <summary>Proxies whose <c>X-Forwarded-*</c> headers are honoured; null keeps the production default.</summary>
+    protected virtual string? ForwardedTrustedProxies => null;
+
+    /// <summary>Key ring directory for Data Protection; null keeps the keys in memory.</summary>
+    protected virtual string? DataProtectionKeysPath => null;
+
+    /// <summary>The client address every request appears to come from; null leaves <c>TestServer</c>'s own (none).</summary>
+    protected virtual string? SimulatedRemoteAddress => null;
+
     public HttpClient CreateApiClient() => CreateClient(new WebApplicationFactoryClientOptions
     {
         BaseAddress = ApiBaseAddress,
@@ -96,12 +110,25 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("PII_ENCRYPTION_KEY", TestPersonalDataKey);
         builder.UseSetting("FRONTEND_URL", AllowedOrigin);
         builder.UseSetting("CORS_ALLOWED_ORIGINS", AllowedOrigin);
+        builder.UseSetting("AllowedHosts", AllowedHosts);
+        if (ForwardedTrustedProxies is not null)
+        {
+            builder.UseSetting(ForwardedHeadersSettings.TrustedProxiesKey, ForwardedTrustedProxies);
+        }
+        if (DataProtectionKeysPath is not null)
+        {
+            builder.UseSetting(DataProtectionSettings.KeysPathKey, DataProtectionKeysPath);
+        }
         builder.UseSetting(GoogleSettings.ClientIdKey, GoogleConfigured ? FakeGoogle.ClientId : string.Empty);
         builder.UseSetting(GoogleSettings.ClientSecretKey, GoogleConfigured ? FakeGoogle.ClientSecret : string.Empty);
         ApplyRestRateLimits(builder);
 
         builder.ConfigureTestServices(services =>
         {
+            if (SimulatedRemoteAddress is not null)
+            {
+                services.AddSingleton<IStartupFilter>(new SimulatedRemoteAddressFilter(IPAddress.Parse(SimulatedRemoteAddress)));
+            }
             ReplaceDatabaseWithSqlite(services);
             services.AddSingleton<TimeProvider>(Clock);
             services.PostConfigure<OpenIdConnectOptions>(AuthSchemes.Google, options =>

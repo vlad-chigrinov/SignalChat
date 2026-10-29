@@ -15,10 +15,15 @@ var builder = WebApplication.CreateBuilder(args);
 var e2eTestAuth = E2eTestAuthSettings.FromConfiguration(builder.Configuration);
 e2eTestAuth.EnsureAllowedIn(builder.Environment.EnvironmentName);
 
+var isProduction = builder.Environment.IsProduction();
+builder.WebHost.ConfigureKestrel(KestrelHardening.Apply);
+var forwardedHeaders = ForwardedHeadersSettings.FromConfiguration(builder.Configuration);
+builder.Services.Configure<ForwardedHeadersOptions>(forwardedHeaders.ApplyTo);
+
 var frontend = FrontendSettings.FromConfiguration(builder.Configuration);
 builder.Services.AddSingleton(frontend);
-builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddSessionAuthentication(builder.Configuration);
+builder.Services.AddInfrastructure(builder.Configuration, requireTlsByDefault: isProduction);
+builder.Services.AddSessionAuthentication(builder.Configuration, isProduction);
 builder.Services.AddFrontendCors(frontend);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ChatRuleExceptionHandler>();
@@ -27,6 +32,10 @@ builder.Services.AddChatRestRateLimiting(builder.Configuration);
 
 var app = builder.Build();
 e2eTestAuth.WarnIfEnabled(app.Logger);
+
+// Behind Traefik the scheme and host come from X-Forwarded-*. This runs before the HTTPS redirect and HSTS,
+// otherwise the redirect would loop and Secure cookies and the Google redirect URI would get the internal address.
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
