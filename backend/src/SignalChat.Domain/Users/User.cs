@@ -9,6 +9,7 @@ public sealed class User
     public const int GoogleSubjectMaxLength = 255;
     public const int DisplayNameMaxLength = 100;
     public const int AvatarUrlMaxLength = 2048;
+    public const string AllowedAvatarHostSuffix = ".googleusercontent.com";
     public const string FallbackDisplayName = "SignalChat user";
     public const int InitialSessionVersion = 1;
 
@@ -82,15 +83,25 @@ public sealed class User
         return trimmed.Length <= DisplayNameMaxLength ? trimmed : trimmed[..DisplayNameMaxLength];
     }
 
+    /// <summary>
+    /// Keeps the avatar only when it is an absolute https URL on a Google-hosted image host
+    /// (<see cref="AllowedAvatarHostSuffix"/>). The leading dot stops look-alikes such as
+    /// <c>evilgoogleusercontent.com</c>. Anything else is dropped, so the client never loads
+    /// an arbitrary third-party image.
+    /// </summary>
     private static string? NormalizeAvatarUrl(string? avatarUrl)
     {
         if (string.IsNullOrWhiteSpace(avatarUrl) || avatarUrl.Length > AvatarUrlMaxLength)
         {
             return null;
         }
-        // Only absolute https URLs are rendered by the client; anything else is dropped.
-        return Uri.TryCreate(avatarUrl, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
-            ? uri.ToString()
-            : null;
+
+        if (!Uri.TryCreate(avatarUrl, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps
+            || !uri.Host.EndsWith(AllowedAvatarHostSuffix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+        return uri.ToString();
     }
 }
