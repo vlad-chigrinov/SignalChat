@@ -257,6 +257,22 @@ describe('realtime service', () => {
   })
 
   describe('direct requests', () => {
+    it('loads the incoming list once the first connection is up', async () => {
+      const requests = useDirectRequestsStore()
+      const listed = vi
+        .spyOn(api, 'listIncomingRequests')
+        .mockResolvedValue([
+          { id: 'dm-missed', from: PEER, text: 'Пока', createdAt: '2026-10-29T10:00:00.000Z' },
+        ])
+      expect(requests.incoming).toEqual([])
+
+      await service.connect()
+      await flushPromises()
+
+      expect(listed).toHaveBeenCalled()
+      expect(requests.incoming.map((item) => item.id)).toEqual(['dm-missed'])
+    })
+
     it('lists a live request in the incoming list', async () => {
       await service.connect()
 

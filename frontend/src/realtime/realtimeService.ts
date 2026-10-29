@@ -125,6 +125,8 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
       }
     }
     await joinOpenConversations()
+    // A request sent while this connection was starting was not pushed to it: load the list once more.
+    await directRequests.load().catch(() => undefined)
   }
 
   async function disconnect(): Promise<void> {
