@@ -32,11 +32,16 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
     private const string TestPersonalDataKey = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
     private const string UnusedPostgres = "Host=localhost;Database=unused";
 
-    private readonly SqliteConnection _database = new("DataSource=:memory:");
+    // A named shared-cache in-memory database: every DbContext opens its own connection (the hub and REST run
+    // concurrently), and the sentinel connection keeps the database alive for the lifetime of this host.
+    private readonly string _databaseConnectionString =
+        $"Data Source=signalchat-test-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+    private readonly SqliteConnection _sentinel;
 
     public SignalChatApiFactory()
     {
-        _database.Open();
+        _sentinel = new SqliteConnection(_databaseConnectionString);
+        _sentinel.Open();
     }
 
     public FakeGoogle Google { get; } = new();
@@ -107,7 +112,7 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
         base.Dispose(disposing);
         if (disposing)
         {
-            _database.Dispose();
+            _sentinel.Dispose();
         }
     }
 
@@ -123,7 +128,7 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
             services.Remove(descriptor);
         }
         services.AddDbContext<SignalChatDbContext>(options => options
-            .UseSqlite(_database)
+            .UseSqlite(_databaseConnectionString)
             .ReplaceService<IModelCustomizer, SqliteDateTimeOffsetModelCustomizer>());
     }
 }
