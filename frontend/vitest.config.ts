@@ -8,7 +8,8 @@ export default defineConfig((env) =>
   mergeConfig(viteConfig(env), {
     test: {
       environment: 'node',
-      exclude: [...configDefaults.exclude],
+      // e2e/ holds Playwright specs, run by `npm run test:e2e`, not by Vitest.
+      exclude: [...configDefaults.exclude, 'e2e/**'],
       root: fileURLToPath(new URL('./', import.meta.url)),
     },
   }),
