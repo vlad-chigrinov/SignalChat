@@ -24,8 +24,25 @@ the server is started with `VITE_USE_MOCK_API=true` and `VITE_MOCK_START_SIGNED_
 so the mock begins without a session and "Войти через Google" signs in locally.
 Covered: sign-in → chat list → chat → send → older history on scroll, route guard,
 logout, plain-text rendering (no HTML injection), no tokens in web storage.
-`e2e/realtime.fixme.spec.ts` is a skipped two-browser-context skeleton for the SignalR ticket (#7).
 Reports and traces (`playwright-report/`, `test-results/`) are git-ignored.
+
+### E2E against the real backend
+
+```sh
+./scripts/e2e-backend.ps1         # from the repo root, in its own terminal: API on https://localhost:5001
+npm run test:e2e:real             # from frontend/: two users chat through the real SignalR hub
+```
+
+`e2e/real/` runs room chat, direct chat, leave, HTML-as-text and a lost connection with
+catch-up, each user signed in through `POST /auth/test-login`. The run stops with a hint when
+the API is not up or test sign-in is off. Handles and room names are unique per run. Report:
+`playwright-report-real/`.
+
+## Mock or real API
+
+The app talks to the backend through `src/api`. In the dev server, `VITE_USE_MOCK_API=true`
+switches to the in-memory mock; the default is the real backend (`VITE_USE_MOCK_API=false`).
+A production build always calls the real API; the mock code itself is still in the bundle.
 
 ## Backend proxy
 
