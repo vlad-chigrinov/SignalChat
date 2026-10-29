@@ -1,4 +1,5 @@
 using SignalChat.Api.Auth;
+using SignalChat.Api.Chat;
 using SignalChat.Api.Configuration;
 using SignalChat.Api.Health;
 using SignalChat.Api.Hubs;
@@ -16,6 +17,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSessionAuthentication(builder.Configuration);
 builder.Services.AddFrontendCors(frontend);
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ChatRuleExceptionHandler>();
 builder.Services.AddSingleton<IHubConnectionRegistry, HubConnectionRegistry>();
 builder.Services.AddSignalR();
 
@@ -25,6 +27,7 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
 }
+app.UseExceptionHandler();
 app.UseHttpsRedirection();
 
 app.UseMiddleware<SecurityHeadersMiddleware>();
@@ -36,6 +39,7 @@ app.UseAuthorization();
 app.MapHealthEndpoints();
 app.MapAuthEndpoints();
 app.MapHub<ChatHub>(ChatHub.Route);
+app.MapChatEndpoints();
 
 if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 {

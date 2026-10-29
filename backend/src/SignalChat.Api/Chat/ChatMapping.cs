@@ -1,0 +1,25 @@
+using SignalChat.Api.Chat.Dto;
+using SignalChat.Infrastructure.Chat;
+
+namespace SignalChat.Api.Chat;
+
+/// <summary>Turns infrastructure views into the JSON shapes the frontend expects.</summary>
+public static class ChatMapping
+{
+    public static UserSummaryDto ToDto(ChatUser user) => new(user.Id, user.DisplayName, user.AvatarUrl);
+
+    public static LastMessageDto? ToDto(LastMessageView? message) =>
+        message is null ? null : new LastMessageDto(message.AuthorId, message.Text, message.SentAt);
+
+    public static RoomDto ToDto(RoomSummary room) =>
+        new(room.Id, room.Name, room.Description, room.MemberCount, ToDto(room.LastMessage));
+
+    public static DirectConversationDto ToDto(DirectConversationSummary conversation) =>
+        new(conversation.Id, ToDto(conversation.Peer), ToDto(conversation.LastMessage));
+
+    public static MessageDto ToDto(MessageView message) =>
+        new(message.Id, message.ConversationId, ToDto(message.Author), message.Text, message.SentAt);
+
+    public static MessagePageDto ToDto(MessagePage page) =>
+        new(page.Items.Select(ToDto).ToList(), page.NextCursor);
+}
