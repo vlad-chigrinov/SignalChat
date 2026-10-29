@@ -31,6 +31,9 @@ function openRoom(room: Room): void {
 
     <template v-else>
       <div class="toolbar">
+        <RouterLink class="button secondary" :to="{ name: ROUTE_NAMES.discoverRooms }">
+          Найти комнату
+        </RouterLink>
         <button type="button" class="button" @click="isCreateRoomOpen = true">
           Создать комнату
         </button>

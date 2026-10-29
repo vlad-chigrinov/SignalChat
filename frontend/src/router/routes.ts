@@ -4,6 +4,7 @@ export const ROUTE_NAMES = {
   login: 'login',
   chatList: 'chat-list',
   chat: 'chat',
+  discoverRooms: 'discover-rooms',
   profile: 'profile',
 } as const
 
@@ -24,6 +25,11 @@ export const routes: RouteRecordRaw[] = [
     name: ROUTE_NAMES.chat,
     component: () => import('@/views/ChatView.vue'),
     props: true,
+  },
+  {
+    path: '/rooms/discover',
+    name: ROUTE_NAMES.discoverRooms,
+    component: () => import('@/views/DiscoverRoomsView.vue'),
   },
   {
     path: '/profile',

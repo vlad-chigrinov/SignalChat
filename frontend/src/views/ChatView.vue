@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
+import LeaveRoomButton from '@/components/LeaveRoomButton.vue'
 import MessageComposer from '@/components/MessageComposer.vue'
 import MessageList from '@/components/MessageList.vue'
 import PresenceDot from '@/components/PresenceDot.vue'
@@ -26,6 +28,7 @@ const presence = usePresenceStore()
 const typing = useTypingStore()
 const connection = useConnectionStore()
 const realtime = getRealtimeService()
+const router = useRouter()
 
 /** Sending is hub-only (C1): without a live connection the composer is blocked. */
 const isSendingUnavailable = computed(() => connection.state !== 'connected')
@@ -80,6 +83,11 @@ async function send(text: string): Promise<void> {
   await realtime.sendMessage(props.id, text)
 }
 
+// Leaving a room unmounts this view, and the watch cleanup above closes its hub conversation.
+function goToChatList(): void {
+  void router.push({ name: ROUTE_NAMES.chatList })
+}
+
 const notifyTyping = () => realtime.notifyTyping(props.id)
 </script>
 
@@ -99,6 +107,7 @@ const notifyTyping = () => realtime.notifyTyping(props.id)
           {{ subtitle }}
         </p>
       </div>
+      <LeaveRoomButton v-if="conversation?.kind === 'room'" :room-id="id" @left="goToChatList" />
     </header>
 
     <p v-if="isUnknown" class="state" role="alert">Чат не найден или у вас нет к нему доступа.</p>
