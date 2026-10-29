@@ -50,6 +50,7 @@ backend/
 - Migrations are applied on startup in Development. To add one:
   `cd backend && dotnet tool restore && dotnet ef migrations add <Name> --project src/SignalChat.Infrastructure --startup-project src/SignalChat.Api --output-dir Persistence/Migrations`
 - Tests: `cd backend && dotnet test` (SQLite in memory and a fake Google: no Docker, no keys needed)
+- Realtime chat (SignalR hub `/hubs/chat`, presence, typing): contract for the frontend in [docs/realtime-hub.md](docs/realtime-hub.md).
 
 ## Google sign-in
 
