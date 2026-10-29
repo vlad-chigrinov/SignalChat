@@ -24,6 +24,12 @@ public sealed class E2eDevelopmentApiFactory : SignalChatApiFactory
     protected override string EnvironmentName => "Development";
 }
 
+/// <summary>The E2E environment with its own settings file, but without the flag: reads <c>appsettings.E2E.json</c> from the API project.</summary>
+public sealed class E2eEnvironmentApiFactory : SignalChatApiFactory
+{
+    protected override string EnvironmentName => "E2E";
+}
+
 /// <summary>The forbidden combination: <c>E2E_TEST_AUTH=true</c> in Production. The host must refuse to start.</summary>
 public sealed class E2eProductionApiFactory : SignalChatApiFactory
 {
