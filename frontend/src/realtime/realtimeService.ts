@@ -6,13 +6,8 @@ import { useTypingStore } from '@/stores/typing'
 import { normalizeMessageText } from '@/utils/messageText'
 
 import { HubCallError, NotConnectedError, type ChatHub, type Unsubscribe } from './chatHub'
-import { RECONNECT_DELAYS_MS, TYPING_SEND_INTERVAL_MS } from './hubContract'
-
-/** Delay before retry number `attempt` (0-based). The last delay repeats once the list runs out. */
-function retryDelayMs(attempt: number): number {
-  const lastIndex = RECONNECT_DELAYS_MS.length - 1
-  return RECONNECT_DELAYS_MS[Math.min(attempt, lastIndex)] ?? 0
-}
+import { TYPING_SEND_INTERVAL_MS } from './hubContract'
+import { retryDelayMs } from './retryDelay'
 
 function sleep(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))

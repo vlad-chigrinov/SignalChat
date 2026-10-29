@@ -7,12 +7,12 @@ import {
   HUB_EVENTS,
   HUB_METHODS,
   HUB_PATH,
-  RECONNECT_DELAYS_MS,
   type ConnectionState,
   type HubEventMap,
   type HubEventName,
 } from './hubContract'
 import { parseHubErrorCode } from './hubErrors'
+import { reconnectPolicy } from './reconnectPolicy'
 
 /** Real hub client. The session cookie authenticates the connection: no token is handled here. */
 export class SignalrChatHub implements ChatHub {
@@ -27,7 +27,7 @@ export class SignalrChatHub implements ChatHub {
   constructor() {
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(HUB_PATH)
-      .withAutomaticReconnect([...RECONNECT_DELAYS_MS])
+      .withAutomaticReconnect(reconnectPolicy)
       .configureLogging(signalR.LogLevel.Warning)
       .build()
 

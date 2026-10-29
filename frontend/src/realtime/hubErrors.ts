@@ -1,17 +1,16 @@
 import { type HubErrorCode, isHubErrorCode } from './hubContract'
 
-const WORD_SEPARATOR = /[^a-z_]+/i
+const CODE_SEPARATOR = ': '
 
 /**
- * Maps the text of a server `HubException` to a stable code. SignalR wraps the message
- * ("Error: not_found", possibly followed by details), so the last known code word wins.
- * Anything unrecognised becomes `unknown`: the UI never shows raw server text.
+ * Maps the text of a server `HubException` to its stable code (docs/realtime-hub.md): the code
+ * is the text after the last ": " ("... HubException: not_found"). Anything else becomes
+ * `unknown`, so the UI never shows raw server text.
  */
 export function parseHubErrorCode(message: string): HubErrorCode {
-  const words = message.toLowerCase().split(WORD_SEPARATOR)
-  for (let index = words.length - 1; index >= 0; index -= 1) {
-    const word = words[index]
-    if (word !== undefined && isHubErrorCode(word)) return word
-  }
-  return 'unknown'
+  const separatorIndex = message.lastIndexOf(CODE_SEPARATOR)
+  const candidate = (
+    separatorIndex === -1 ? message : message.slice(separatorIndex + CODE_SEPARATOR.length)
+  ).trim()
+  return isHubErrorCode(candidate) ? candidate : 'unknown'
 }

@@ -53,6 +53,28 @@ describe('messages store: refreshLatest', () => {
     expect(store.historyOf('room-1').hasLoadedLatest).toBe(true)
   })
 
+  it('reads older pages by cursor until it reaches a known message', async () => {
+    const store = useMessagesStore()
+    store.applyIncomingMessage(message(1))
+    const getMessages = vi
+      .spyOn(api, 'getMessages')
+      .mockResolvedValueOnce({ items: [message(4), message(5)], nextCursor: 'c-4' })
+      .mockResolvedValueOnce({ items: [message(2), message(3)], nextCursor: 'c-2' })
+      .mockResolvedValueOnce({ items: [message(0), message(1)], nextCursor: null })
+
+    await store.refreshLatest('room-1')
+
+    expect(store.historyOf('room-1').items.map((m) => m.id)).toEqual([
+      'm0',
+      'm1',
+      'm2',
+      'm3',
+      'm4',
+      'm5',
+    ])
+    expect(getMessages.mock.calls.map(([, query]) => query.before)).toEqual([null, 'c-4', 'c-2'])
+  })
+
   it('leaves the history untouched when the refresh fails', async () => {
     const store = useMessagesStore()
     store.applyIncomingMessage(message(1))

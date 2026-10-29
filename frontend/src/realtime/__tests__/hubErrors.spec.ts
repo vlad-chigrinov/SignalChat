@@ -13,19 +13,23 @@ describe('parseHubErrorCode', () => {
     expect(parseHubErrorCode(message)).toBe(code)
   })
 
-  it('takes the last known code when details follow the code', () => {
-    expect(parseHubErrorCode('Error: not_found\n   at ChatHub.JoinRoom')).toBe('not_found')
+  it('reads the code after the last ": " of a real HubException message', () => {
+    const message =
+      "Error: An unexpected error occurred invoking 'JoinRoom' on the server. HubException: not_found"
+
+    expect(parseHubErrorCode(message)).toBe('not_found')
+  })
+
+  it('does not take a code word that appears inside the details', () => {
+    expect(parseHubErrorCode('Error: database says not_found somewhere')).toBe('unknown')
+    expect(parseHubErrorCode('Error: unknown\n   at ChatHub.JoinRoom')).toBe('unknown')
   })
 
   it('no longer knows "forbidden": a non-member is always not_found (C3)', () => {
     expect(parseHubErrorCode('Error: forbidden')).toBe('unknown')
   })
 
-  it('is case-insensitive', () => {
-    expect(parseHubErrorCode('Error: RATE_LIMITED')).toBe('rate_limited')
-  })
-
-  it('falls back to unknown for unrecognised text', () => {
+  it('falls back to unknown for unrecognised or empty text', () => {
     expect(parseHubErrorCode('Error: database connection lost')).toBe('unknown')
     expect(parseHubErrorCode('')).toBe('unknown')
   })
