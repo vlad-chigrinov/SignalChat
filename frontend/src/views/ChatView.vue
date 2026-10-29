@@ -83,9 +83,11 @@ async function send(text: string): Promise<void> {
   await realtime.sendMessage(props.id, text)
 }
 
-// Leaving a room unmounts this view, and the watch cleanup above closes its hub conversation.
-function goToChatList(): void {
-  void router.push({ name: ROUTE_NAMES.chatList })
+// Navigate first, then forget the room: the view must not outlive its room in the store.
+// Leaving unmounts this view, and the watch cleanup above closes its hub conversation.
+async function leftRoom(roomId: string): Promise<void> {
+  await router.push({ name: ROUTE_NAMES.chatList })
+  rooms.forgetRoom(roomId)
 }
 
 const notifyTyping = () => realtime.notifyTyping(props.id)
@@ -107,7 +109,7 @@ const notifyTyping = () => realtime.notifyTyping(props.id)
           {{ subtitle }}
         </p>
       </div>
-      <LeaveRoomButton v-if="conversation?.kind === 'room'" :room-id="id" @left="goToChatList" />
+      <LeaveRoomButton v-if="conversation?.kind === 'room'" :room-id="id" @left="leftRoom" />
     </header>
 
     <p v-if="isUnknown" class="state" role="alert">Чат не найден или у вас нет к нему доступа.</p>

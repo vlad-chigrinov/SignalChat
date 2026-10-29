@@ -92,8 +92,15 @@ export const useRoomsStore = defineStore('rooms', () => {
     await load({ force: true })
   }
 
+  /**
+   * Leaves on the server. The room stays in the list until `forgetRoom`: a room view must
+   * navigate away first, or it would show "not found" for the room it is still on.
+   */
   async function leaveRoom(roomId: ConversationId): Promise<void> {
     await api.leaveRoom(roomId)
+  }
+
+  function forgetRoom(roomId: ConversationId): void {
     rooms.value = rooms.value.filter((room) => room.id !== roomId)
   }
 
@@ -129,6 +136,7 @@ export const useRoomsStore = defineStore('rooms', () => {
     createRoom,
     joinRoom,
     leaveRoom,
+    forgetRoom,
     openDirect,
     reset,
   }

@@ -64,14 +64,17 @@ describe('rooms store', () => {
     expect(store.rooms.map((item) => item.id)).toEqual(['room-chess'])
   })
 
-  it('leaves a room and removes it from my rooms', async () => {
+  it('leaves a room on the server and keeps it listed until forgotten', async () => {
     const general = room('room-general', 'Общий')
-    vi.spyOn(api, 'leaveRoom').mockResolvedValue(undefined)
+    const leaveRoom = vi.spyOn(api, 'leaveRoom').mockResolvedValue(undefined)
     const store = useRoomsStore()
     store.rooms = [general]
 
     await store.leaveRoom('room-general')
+    expect(leaveRoom).toHaveBeenCalledWith('room-general')
+    expect(store.rooms.map((item) => item.id)).toEqual(['room-general'])
 
+    store.forgetRoom('room-general')
     expect(store.rooms).toEqual([])
   })
 

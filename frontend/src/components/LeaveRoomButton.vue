@@ -5,7 +5,7 @@ import { useRoomsStore } from '@/stores/rooms'
 import { roomActionFailure } from '@/utils/roomActionError'
 
 const props = defineProps<{ roomId: string }>()
-const emit = defineEmits<{ left: [] }>()
+const emit = defineEmits<{ left: [roomId: string] }>()
 
 const rooms = useRoomsStore()
 const isLeaving = ref(false)
@@ -17,7 +17,7 @@ async function leave(): Promise<void> {
   isLeaving.value = true
   try {
     await rooms.leaveRoom(props.roomId)
-    emit('left')
+    emit('left', props.roomId)
   } catch (error) {
     const failure = roomActionFailure(error)
     leaveError.value = failure.message
