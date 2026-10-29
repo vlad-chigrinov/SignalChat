@@ -1,7 +1,17 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-import { api, type Conversation, type DirectConversation, type Message, type Room } from '@/api'
+import {
+  api,
+  type Conversation,
+  type CreateRoomInput,
+  type DirectConversation,
+  type ConversationId,
+  type Message,
+  type Room,
+  type UserId,
+} from '@/api'
+import { DISCOVER_MAX_LIMIT } from '@/api/limits'
 import { errorMessage } from '@/utils/errorMessage'
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -12,10 +22,14 @@ function byLatestActivity(left: Conversation, right: Conversation): number {
   return rightAt.localeCompare(leftAt)
 }
 
-/** Rooms and direct conversations the current user belongs to. */
+/**
+ * Rooms and direct conversations the current user belongs to, plus rooms found by discovery
+ * (which the user is not in yet). Actions throw the API error; the caller shows `errorMessage`.
+ */
 export const useRoomsStore = defineStore('rooms', () => {
   const rooms = ref<Room[]>([])
   const directConversations = ref<DirectConversation[]>([])
+  const discovered = ref<Room[]>([])
   const status = ref<LoadStatus>('idle')
   const error = ref<string | null>(null)
 
@@ -60,9 +74,42 @@ export const useRoomsStore = defineStore('rooms', () => {
     }
   }
 
+  /** Rooms matching `query` that the caller is not in. Replaces the previous result. */
+  async function discover(query: string): Promise<void> {
+    discovered.value = await api.discoverRooms(query, DISCOVER_MAX_LIMIT)
+  }
+
+  async function createRoom(input: CreateRoomInput): Promise<Room> {
+    const room = await api.createRoom(input)
+    rooms.value = [...rooms.value, room]
+    return room
+  }
+
+  /** Joins a discovered room. The list is reloaded so the member count matches the server. */
+  async function joinRoom(roomId: ConversationId): Promise<void> {
+    await api.joinRoom(roomId)
+    discovered.value = discovered.value.filter((room) => room.id !== roomId)
+    await load({ force: true })
+  }
+
+  async function leaveRoom(roomId: ConversationId): Promise<void> {
+    await api.leaveRoom(roomId)
+    rooms.value = rooms.value.filter((room) => room.id !== roomId)
+  }
+
+  /** Opens (or reuses) the direct conversation with a user and adds it to the list. */
+  async function openDirect(userId: UserId): Promise<DirectConversation> {
+    const direct = await api.openDirectConversation(userId)
+    if (!directConversations.value.some((item) => item.id === direct.id)) {
+      directConversations.value = [...directConversations.value, direct]
+    }
+    return direct
+  }
+
   function reset(): void {
     rooms.value = []
     directConversations.value = []
+    discovered.value = []
     status.value = 'idle'
     error.value = null
   }
@@ -70,6 +117,7 @@ export const useRoomsStore = defineStore('rooms', () => {
   return {
     rooms,
     directConversations,
+    discovered,
     sortedRooms,
     sortedDirects,
     status,
@@ -77,6 +125,11 @@ export const useRoomsStore = defineStore('rooms', () => {
     load,
     findConversation,
     applyLastMessage,
+    discover,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    openDirect,
     reset,
   }
 })
