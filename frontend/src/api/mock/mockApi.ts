@@ -1,13 +1,8 @@
 import type { ChatApi } from '../contract'
 import { ApiError } from '../http'
 import type { Message, MessagePreview } from '../types'
-import {
-  createMockHistories,
-  mockCurrentUser,
-  mockDirects,
-  mockOnlineUserIds,
-  mockRooms,
-} from './mockData'
+import { mockCurrentUser, mockDirects, mockOnlineUserIds, mockRooms } from './mockData'
+import { sharedMockHistories } from './mockHistories'
 
 /** Simulated network latency, so loading states are visible. */
 const MOCK_LATENCY_MS = 300
@@ -30,14 +25,13 @@ export interface MockApiOptions {
 }
 
 /**
- * In-memory fake backend. A factory with no module-level state, so a production
- * build, which never calls it, drops this module and the demo data entirely.
+ * In-memory fake REST backend (read-only: messages are sent through the hub). A production
+ * build never calls it, so the bundler drops this module and the demo data with it.
  */
 export function createMockApi(options: MockApiOptions = {}): ChatApi {
-  const histories = createMockHistories()
+  const histories = sharedMockHistories()
   // Kept in memory only: a page reload starts signed in again.
   let isSignedIn = !options.startSignedOut
-  let sentCounter = 0
 
   function historyOf(conversationId: string): Message[] {
     const history = histories.get(conversationId)
@@ -77,19 +71,6 @@ export function createMockApi(options: MockApiOptions = {}): ChatApi {
         items: history.slice(start, end),
         nextCursor: start > 0 ? String(start) : null,
       })
-    },
-
-    async sendMessage(conversationId, text) {
-      sentCounter += 1
-      const message: Message = {
-        id: `${conversationId}-sent${sentCounter}`,
-        conversationId,
-        author: mockCurrentUser,
-        text,
-        sentAt: new Date().toISOString(),
-      }
-      historyOf(conversationId).push(message)
-      return delay(message)
     },
 
     getOnlineUserIds: () => delay([...mockOnlineUserIds]),

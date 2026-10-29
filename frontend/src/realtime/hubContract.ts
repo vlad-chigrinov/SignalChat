@@ -30,9 +30,11 @@ export const TYPING_SEND_INTERVAL_MS = 2000
 /** Delays before each automatic reconnect attempt. */
 export const RECONNECT_DELAYS_MS: readonly number[] = [0, 2000, 5000, 10000, 30000]
 
-/** Codes the hub puts in `HubException`. `unknown` is what the client uses for anything else. */
+/**
+ * Codes the hub puts in `HubException`. A non-member always gets `not_found` (C3), never a
+ * separate "forbidden". `unknown` is what the client uses for anything else.
+ */
 export const HUB_ERROR_CODES = [
-  'forbidden',
   'not_found',
   'invalid_message',
   'rate_limited',

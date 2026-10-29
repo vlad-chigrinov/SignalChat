@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { api, type Message } from '@/api'
 
-import { MAX_MESSAGE_LENGTH, MESSAGE_PAGE_SIZE, useMessagesStore } from '../messages'
+import { MESSAGE_PAGE_SIZE, useMessagesStore } from '../messages'
 
 function message(index: number): Message {
   return {
@@ -61,16 +61,5 @@ describe('messages store', () => {
     expect(history.error).not.toBeNull()
     expect(history.hasLoadedLatest).toBe(false)
     expect(history.isLoading).toBe(false)
-  })
-
-  it('rejects empty and oversized messages without calling the API', async () => {
-    const sendMessage = vi.spyOn(api, 'sendMessage')
-    const store = useMessagesStore()
-
-    await expect(store.send('room-1', '   ')).rejects.toThrow(RangeError)
-    await expect(store.send('room-1', 'x'.repeat(MAX_MESSAGE_LENGTH + 1))).rejects.toThrow(
-      RangeError,
-    )
-    expect(sendMessage).not.toHaveBeenCalled()
   })
 })

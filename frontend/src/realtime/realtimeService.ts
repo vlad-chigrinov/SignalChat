@@ -5,7 +5,7 @@ import { usePresenceStore } from '@/stores/presence'
 import { useTypingStore } from '@/stores/typing'
 import { normalizeMessageText } from '@/utils/messageText'
 
-import type { ChatHub, Unsubscribe } from './chatHub'
+import { NotConnectedError, type ChatHub, type Unsubscribe } from './chatHub'
 import { TYPING_SEND_INTERVAL_MS } from './hubContract'
 
 export interface RealtimeService {
@@ -13,11 +13,14 @@ export interface RealtimeService {
   connect(): Promise<void>
   /** Stops the hub and forgets open conversations and typing state. */
   disconnect(): Promise<void>
-  /** Joins the conversation's group. Rejects with `HubCallError` (e.g. `forbidden`). */
+  /** Joins the conversation's group. Rejects with `HubCallError` (e.g. `not_found`). */
   openConversation(conversationId: ConversationId): Promise<void>
   /** Leaves the group. Best effort: the server also drops the membership on disconnect. */
   closeConversation(conversationId: ConversationId): Promise<void>
-  /** Sends through the hub when connected, otherwise over REST. Rejects with `HubCallError` on hub errors. */
+  /**
+   * Sends through the hub only (C1). Rejects with `NotConnectedError` before any call when the
+   * hub is not connected, and with `HubCallError` for a hub error.
+   */
   sendMessage(conversationId: ConversationId, text: string): Promise<Message>
   /** Tells the others that the user is typing; throttled per conversation. */
   notifyTyping(conversationId: ConversationId): void
@@ -56,6 +59,15 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
     ])
   }
 
+  /**
+   * The server closed the connection with no reconnect. The network may simply be gone, so
+   * the session is checked: only an answer "not signed in" (401) ends it.
+   */
+  async function handleServerClose(): Promise<void> {
+    const user = await api.getCurrentUser().catch(() => undefined)
+    if (user === null) connection.markSessionEnded()
+  }
+
   const unsubscribers: Unsubscribe[] = [
     hub.on('MessageReceived', (message) => {
       messages.applyIncomingMessage(message)
@@ -65,6 +77,7 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
     hub.on('UserTyping', (event) => typing.applyUserTyping(event)),
     hub.onConnectionState((state) => connection.setState(state)),
     hub.onReconnected(() => void restoreAfterReconnect()),
+    hub.onClosed(() => void handleServerClose()),
   ]
 
   async function connect(): Promise<void> {
@@ -100,9 +113,8 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
 
   async function sendMessage(conversationId: ConversationId, rawText: string): Promise<Message> {
     const text = normalizeMessageText(rawText)
-    const message = isConnected()
-      ? await hub.sendMessage(conversationId, text)
-      : await api.sendMessage(conversationId, text)
+    if (!isConnected()) throw new NotConnectedError()
+    const message = await hub.sendMessage(conversationId, text)
     // The hub echoes the message to the group too: mergeMessages keeps only one copy.
     messages.applyIncomingMessage(message)
     return message

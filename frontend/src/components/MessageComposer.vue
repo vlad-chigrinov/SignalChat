@@ -4,7 +4,14 @@ import { computed, ref, watch } from 'vue'
 import { MAX_MESSAGE_LENGTH } from '@/stores/messages'
 import { errorMessage } from '@/utils/errorMessage'
 
-const props = defineProps<{ send: (text: string) => Promise<void> }>()
+const props = withDefaults(
+  defineProps<{
+    send: (text: string) => Promise<void>
+    /** True while the realtime connection is down: the draft is kept, sending is blocked. */
+    unavailable?: boolean
+  }>(),
+  { unavailable: false },
+)
 /** Emitted while the user types a non-empty draft. The parent throttles it into a hub call. */
 const emit = defineEmits<{ typing: [] }>()
 
@@ -12,7 +19,9 @@ const draft = ref('')
 const isSending = ref(false)
 const error = ref<string | null>(null)
 
-const canSend = computed(() => draft.value.trim().length > 0 && !isSending.value)
+const canSend = computed(
+  () => !props.unavailable && draft.value.trim().length > 0 && !isSending.value,
+)
 
 // Watching the draft (not the input event) also covers the reset after a send, which is empty.
 watch(draft, (value) => {
@@ -50,11 +59,13 @@ function onKeydown(event: KeyboardEvent): void {
       class="input"
       rows="1"
       :maxlength="MAX_MESSAGE_LENGTH"
+      :disabled="unavailable"
       placeholder="Написать сообщение…"
       @keydown="onKeydown"
     ></textarea>
     <button type="submit" class="button" :disabled="!canSend">Отправить</button>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p v-if="unavailable" class="status" role="status">Нет соединения. Отправка недоступна.</p>
+    <p v-else-if="error" class="error" role="alert">{{ error }}</p>
   </form>
 </template>
 
@@ -81,10 +92,18 @@ function onKeydown(event: KeyboardEvent): void {
   resize: vertical;
 }
 
-.error {
+.error,
+.status {
   flex-basis: 100%;
   margin: 0;
-  color: var(--color-danger);
   font-size: 0.875rem;
+}
+
+.error {
+  color: var(--color-danger);
+}
+
+.status {
+  color: var(--color-warning);
 }
 </style>

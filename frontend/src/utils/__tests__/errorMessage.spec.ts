@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
 import { ApiError } from '@/api'
-import { HubCallError } from '@/realtime/chatHub'
+import { HubCallError, NotConnectedError } from '@/realtime/chatHub'
 
 import { errorMessage } from '../errorMessage'
 
 const GENERIC = 'Не удалось связаться с сервером. Попробуйте ещё раз.'
 
 describe('errorMessage', () => {
+  it('tells the user that nothing was sent when the hub is not connected', () => {
+    expect(errorMessage(new NotConnectedError())).toBe('Нет соединения. Сообщение не отправлено.')
+  })
+
   it('maps hub error codes to user text', () => {
-    expect(errorMessage(new HubCallError('forbidden'))).toBe('Нет доступа к этому чату.')
+    expect(errorMessage(new HubCallError('not_found'))).toBe('Чат не найден.')
     expect(errorMessage(new HubCallError('rate_limited'))).toBe(
       'Слишком много сообщений подряд. Подождите немного.',
     )

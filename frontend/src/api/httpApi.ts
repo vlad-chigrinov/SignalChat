@@ -43,12 +43,5 @@ export const httpApi: ChatApi = {
     return requestJson<CursorPage<Message>>(`${conversationPath(conversationId)}?${params}`)
   },
 
-  sendMessage(conversationId, text) {
-    return requestJson<Message>(conversationPath(conversationId), {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-    })
-  },
-
   getOnlineUserIds: () => requestJson<UserId[]>('/api/presence/online'),
 }

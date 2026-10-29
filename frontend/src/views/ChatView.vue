@@ -8,6 +8,7 @@ import TypingIndicator from '@/components/TypingIndicator.vue'
 import { getRealtimeService } from '@/realtime'
 import { ROUTE_NAMES } from '@/router/routes'
 import { useAuthStore } from '@/stores/auth'
+import { useConnectionStore } from '@/stores/connection'
 import { useMessagesStore } from '@/stores/messages'
 import { usePresenceStore } from '@/stores/presence'
 import { useRoomsStore } from '@/stores/rooms'
@@ -23,7 +24,11 @@ const rooms = useRoomsStore()
 const messages = useMessagesStore()
 const presence = usePresenceStore()
 const typing = useTypingStore()
+const connection = useConnectionStore()
 const realtime = getRealtimeService()
+
+/** Sending is hub-only (C1): without a live connection the composer is blocked. */
+const isSendingUnavailable = computed(() => connection.state !== 'connected')
 
 const conversation = computed(() => rooms.findConversation(props.id))
 const history = computed(() => messages.historyOf(props.id))
@@ -60,7 +65,7 @@ const subtitle = computed(() => {
 onMounted(() => void rooms.load())
 
 // Joined while the chat is open, left when the route changes or the view unmounts.
-// A refused join (forbidden) is shown by the REST load below, so the error is ignored here.
+// A refused join (not_found, C3) is shown by the REST load below, so the error is ignored here.
 watch(
   () => props.id,
   (id, _previousId, onCleanup) => {
@@ -118,7 +123,7 @@ const notifyTyping = () => realtime.notifyTyping(props.id)
         @load-older="messages.loadOlder(id)"
       />
       <TypingIndicator :text="typingText" />
-      <MessageComposer :send="send" @typing="notifyTyping" />
+      <MessageComposer :send="send" :unavailable="isSendingUnavailable" @typing="notifyTyping" />
     </template>
   </main>
 </template>

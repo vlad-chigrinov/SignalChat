@@ -15,6 +15,17 @@ export class HubCallError extends Error {
   }
 }
 
+/**
+ * Thrown before a send when the hub is not connected. Messages are never sent over REST (C1),
+ * so the UI blocks the composer and shows "Нет соединения" instead.
+ */
+export class NotConnectedError extends Error {
+  constructor() {
+    super('Realtime hub is not connected')
+    this.name = 'NotConnectedError'
+  }
+}
+
 /** Transport-agnostic view of the realtime hub. Implemented by SignalR and by an in-memory fake. */
 export interface ChatHub {
   start(): Promise<void>
@@ -35,4 +46,9 @@ export interface ChatHub {
   onConnectionState(handler: (state: ConnectionState) => void): Unsubscribe
   /** Fires after an automatic reconnect. Groups are gone by then and must be joined again. */
   onReconnected(handler: () => void): Unsubscribe
+  /**
+   * Fires when the connection closes and no automatic reconnect follows: the server ended it
+   * (session revoked) or the reconnect attempts ran out. Not fired for our own `stop()`.
+   */
+  onClosed(handler: () => void): Unsubscribe
 }

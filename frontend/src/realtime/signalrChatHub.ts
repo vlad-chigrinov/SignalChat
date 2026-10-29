@@ -20,6 +20,9 @@ export class SignalrChatHub implements ChatHub {
   private state: ConnectionState = 'disconnected'
   private readonly stateListeners = new Set<(state: ConnectionState) => void>()
   private readonly reconnectedListeners = new Set<() => void>()
+  private readonly closedListeners = new Set<() => void>()
+  /** Set by our own `stop()`, so that its close is not reported as a server-side close. */
+  private stopRequested = false
 
   constructor() {
     this.connection = new signalR.HubConnectionBuilder()
@@ -33,11 +36,15 @@ export class SignalrChatHub implements ChatHub {
       this.setState('connected')
       this.reconnectedListeners.forEach((listener) => listener())
     })
-    this.connection.onclose(() => this.setState('disconnected'))
+    this.connection.onclose(() => {
+      this.setState('disconnected')
+      if (!this.stopRequested) this.closedListeners.forEach((listener) => listener())
+    })
   }
 
   async start(): Promise<void> {
     if (this.state === 'connected') return
+    this.stopRequested = false
     this.setState('connecting')
     try {
       await this.connection.start()
@@ -49,6 +56,7 @@ export class SignalrChatHub implements ChatHub {
   }
 
   async stop(): Promise<void> {
+    this.stopRequested = true
     await this.connection.stop()
     this.setState('disconnected')
   }
@@ -90,6 +98,11 @@ export class SignalrChatHub implements ChatHub {
   onReconnected(handler: () => void): Unsubscribe {
     this.reconnectedListeners.add(handler)
     return () => this.reconnectedListeners.delete(handler)
+  }
+
+  onClosed(handler: () => void): Unsubscribe {
+    this.closedListeners.add(handler)
+    return () => this.closedListeners.delete(handler)
   }
 
   private async invoke<Result>(method: string, ...args: unknown[]): Promise<Result> {

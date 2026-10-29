@@ -4,7 +4,6 @@ import { parseHubErrorCode } from '../hubErrors'
 
 describe('parseHubErrorCode', () => {
   it.each([
-    ['Error: forbidden', 'forbidden'],
     ['Error: not_found', 'not_found'],
     ['Error: invalid_message', 'invalid_message'],
     ['Error: rate_limited', 'rate_limited'],
@@ -15,7 +14,11 @@ describe('parseHubErrorCode', () => {
   })
 
   it('takes the last known code when details follow the code', () => {
-    expect(parseHubErrorCode('Error: forbidden\n   at ChatHub.JoinRoom')).toBe('forbidden')
+    expect(parseHubErrorCode('Error: not_found\n   at ChatHub.JoinRoom')).toBe('not_found')
+  })
+
+  it('no longer knows "forbidden": a non-member is always not_found (C3)', () => {
+    expect(parseHubErrorCode('Error: forbidden')).toBe('unknown')
   })
 
   it('is case-insensitive', () => {
@@ -28,6 +31,6 @@ describe('parseHubErrorCode', () => {
   })
 
   it('does not match a code embedded inside a longer word', () => {
-    expect(parseHubErrorCode('Error: forbiddenness')).toBe('unknown')
+    expect(parseHubErrorCode('Error: not_foundness')).toBe('unknown')
   })
 })

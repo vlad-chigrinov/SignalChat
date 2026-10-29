@@ -19,7 +19,7 @@ export interface ChatApi {
   logout(): Promise<void>
   listRooms(): Promise<Room[]>
   listDirectConversations(): Promise<DirectConversation[]>
+  /** History only. Messages are sent through the realtime hub (C1), never over REST. */
   getMessages(conversationId: ConversationId, query: HistoryQuery): Promise<CursorPage<Message>>
-  sendMessage(conversationId: ConversationId, text: string): Promise<Message>
   getOnlineUserIds(): Promise<UserId[]>
 }

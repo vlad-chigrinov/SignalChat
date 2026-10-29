@@ -1,4 +1,5 @@
 import type { ConversationId, Message, PresenceChange, UserSummary } from '@/api'
+import { sharedMockHistories } from '@/api/mock/mockHistories'
 
 import { HubCallError, type ChatHub, type Unsubscribe } from './chatHub'
 import {
@@ -18,14 +19,16 @@ export interface FakeChatHubOptions {
 
 /**
  * In-memory hub for unit tests and mock mode. It follows the same contract as the server:
- * sends are echoed to every listener (sender included) and each call needs a connection.
- * The `emit*` and `simulateReconnect` helpers play the server's part in tests.
+ * a call needs a connection and a known conversation (else `not_found`), a sent message is
+ * stored in the shared mock history and echoed to every listener (sender included).
+ * The `emit*`, `simulate*` helpers play the server's part in tests.
  */
 export class FakeChatHub implements ChatHub {
   private state: ConnectionState = 'disconnected'
   private readonly joined = new Set<ConversationId>()
   private readonly stateListeners = new Set<(state: ConnectionState) => void>()
   private readonly reconnectedListeners = new Set<() => void>()
+  private readonly closedListeners = new Set<() => void>()
   private readonly listeners: { [Name in HubEventName]: Set<Listener<Name>> } = {
     MessageReceived: new Set(),
     UserJoined: new Set(),
@@ -43,6 +46,7 @@ export class FakeChatHub implements ChatHub {
     this.setState('connected')
   }
 
+  /** Our own stop: no `onClosed`, same as the SignalR client. */
   async stop(): Promise<void> {
     this.joined.clear()
     this.setState('disconnected')
@@ -54,6 +58,7 @@ export class FakeChatHub implements ChatHub {
 
   async joinRoom(conversationId: ConversationId): Promise<void> {
     this.requireConnected()
+    requireKnownConversation(conversationId)
     this.joined.add(conversationId)
   }
 
@@ -66,6 +71,7 @@ export class FakeChatHub implements ChatHub {
     this.requireConnected()
     const author = this.options.currentUser()
     if (!author) throw new HubCallError('unauthenticated')
+    const history = requireKnownConversation(conversationId)
     this.sentCounter += 1
     const message: Message = {
       id: `fake-${this.sentCounter}`,
@@ -74,6 +80,7 @@ export class FakeChatHub implements ChatHub {
       text,
       sentAt: new Date().toISOString(),
     }
+    history.push(message)
     this.emitMessage(message)
     return message
   }
@@ -97,6 +104,11 @@ export class FakeChatHub implements ChatHub {
   onReconnected(handler: () => void): Unsubscribe {
     this.reconnectedListeners.add(handler)
     return () => this.reconnectedListeners.delete(handler)
+  }
+
+  onClosed(handler: () => void): Unsubscribe {
+    this.closedListeners.add(handler)
+    return () => this.closedListeners.delete(handler)
   }
 
   /** Test helpers: what the server would push. */
@@ -123,6 +135,13 @@ export class FakeChatHub implements ChatHub {
     this.reconnectedListeners.forEach((listener) => listener())
   }
 
+  /** The server closes the connection for good (session revoked): no reconnect follows. */
+  simulateServerClose(): void {
+    this.joined.clear()
+    this.setState('disconnected')
+    this.closedListeners.forEach((listener) => listener())
+  }
+
   /** Test inspection: rooms currently joined through this connection. */
   joinedConversations(): ConversationId[] {
     return [...this.joined]
@@ -146,4 +165,11 @@ export class FakeChatHub implements ChatHub {
     this.state = next
     this.stateListeners.forEach((listener) => listener(next))
   }
+}
+
+/** Unknown conversation (and, on the server, any non-member) answers `not_found`. */
+function requireKnownConversation(conversationId: ConversationId): Message[] {
+  const history = sharedMockHistories().get(conversationId)
+  if (!history) throw new HubCallError('not_found')
+  return history
 }

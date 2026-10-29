@@ -4,10 +4,10 @@ import { defineStore } from 'pinia'
 import { api, type ConversationId, type Message } from '@/api'
 import { errorMessage } from '@/utils/errorMessage'
 import { mergeMessages } from '@/utils/mergeMessages'
-import { normalizeMessageText } from '@/utils/messageText'
 
 import { useRoomsStore } from './rooms'
 
+// Sending lives in the realtime service (hub only, C1); the limit is shared from here.
 export { MAX_MESSAGE_LENGTH } from '@/utils/messageText'
 
 export const MESSAGE_PAGE_SIZE = 30
@@ -94,12 +94,6 @@ export const useMessagesStore = defineStore('messages', () => {
     useRoomsStore().applyLastMessage(message)
   }
 
-  async function send(conversationId: ConversationId, rawText: string): Promise<void> {
-    const text = normalizeMessageText(rawText)
-    const message = await api.sendMessage(conversationId, text)
-    applyIncomingMessage(message)
-  }
-
   function reset(): void {
     histories.value = {}
   }
@@ -111,7 +105,6 @@ export const useMessagesStore = defineStore('messages', () => {
     loadOlder,
     refreshLatest,
     applyIncomingMessage,
-    send,
     reset,
   }
 })

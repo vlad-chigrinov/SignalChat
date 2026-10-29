@@ -12,8 +12,8 @@ Change both sides together.
   sees a token and stores nothing in `localStorage` / `sessionStorage`.
 - Every API call carries `X-Requested-With: XMLHttpRequest`. For those requests an
   unauthenticated call must answer **401**, not a 302 to Google.
-- Access to a conversation is checked on the server: **403** if the user is not a
-  member, **404** if the conversation does not exist.
+- Access to a conversation is checked on the server. A non-member gets **404**, the same as
+  for a missing conversation: no way to probe which ids exist (C3). No 403 for conversations.
 
 ## Auth
 
@@ -40,10 +40,9 @@ Rooms and direct conversations share one id space: `/chat/:id` accepts either.
 - 200 `CursorPage<Message>`: `items` chronological (oldest first), `nextCursor` is an
   opaque string to pass as `before` for the previous, older page, or `null` at the start.
 
-`POST /api/conversations/{id}/messages` body `{ "text": "..." }`
-
-- 201 `Message`. Text is stored and returned as plain text; the UI never renders HTML.
-- 400 when the text is empty or longer than 2000 characters.
+**Sending is not over REST.** Messages go only through the SignalR hub `SendMessage`
+(see `frontend/src/realtime/`). While the hub is not connected the UI blocks sending.
+The text is plain text; the UI never renders HTML.
 
 ## Presence
 
