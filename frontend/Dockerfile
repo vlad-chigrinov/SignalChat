@@ -1,8 +1,13 @@
 # syntax=docker/dockerfile:1
 
+# Image versions are pinned, so a rebuild gives the same base images. Bump them on purpose, not by
+# accident: node 24.22 satisfies package.json "engines" (>=24.12), nginx-unprivileged 1.30 is the nginx
+# build that runs as a non-root user on port 8080.
+ARG NODE_IMAGE=node:24.22-alpine
+ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.30-alpine
+
 # Build stage: Node compiles the app. Only dist/ leaves this stage.
-# Node 24 is the lowest major in package.json "engines" that is still supported.
-FROM node:24-alpine AS build
+FROM ${NODE_IMAGE} AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -11,7 +16,7 @@ RUN npm run build
 
 # Runtime stage: nginx as a non-root user on port 8080. The unprivileged image is the official nginx
 # build for this: it needs no root to bind a port and no root-owned runtime directory.
-FROM nginxinc/nginx-unprivileged:stable-alpine AS web
+FROM ${NGINX_IMAGE} AS web
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
