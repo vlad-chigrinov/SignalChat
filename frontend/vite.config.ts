@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
+import { contentSecurityPolicyPlugin } from './vite.csp.ts'
 import { createBackendProxy, DEFAULT_BACKEND_URL } from './vite.proxy.ts'
 
 // https://vite.dev/config/
@@ -13,7 +14,7 @@ export default defineConfig(({ mode }) => {
   const backendUrl = env.BACKEND_URL || DEFAULT_BACKEND_URL
 
   return {
-    plugins: [vue(), vueDevTools()],
+    plugins: [vue(), vueDevTools(), contentSecurityPolicyPlugin()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),

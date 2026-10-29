@@ -15,7 +15,7 @@
     "format": "prettier --write --experimental-cli src/ e2e/ *.config.ts vite.proxy.ts",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "lint:ci": "oxlint . && eslint . && prettier --check src/ e2e/ *.config.ts vite.proxy.ts"
+    "lint:ci": "oxlint . && eslint . && prettier --check src/ e2e/ *.config.ts vite.proxy.ts vite.csp.ts vite.csp.spec.ts"
   },
   "dependencies": {
     "@microsoft/signalr": "^10.0.11",

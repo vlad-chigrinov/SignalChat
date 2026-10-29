@@ -4,6 +4,8 @@
   "include": [
     "vite.config.*",
     "vite.proxy.ts",
+    "vite.csp.ts",
+    "vite.csp.spec.ts",
     "vitest.config.*",
     "cypress.config.*",
     "playwright.config.*",
