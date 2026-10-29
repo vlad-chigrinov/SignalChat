@@ -4,19 +4,30 @@ import { useRouter } from 'vue-router'
 
 import ConversationListItem from '@/components/ConversationListItem.vue'
 import CreateRoomDialog from '@/components/CreateRoomDialog.vue'
-import type { Room } from '@/api'
+import UserSearchDialog from '@/components/UserSearchDialog.vue'
+import type { ConversationId, DirectConversation, Room } from '@/api'
 import { ROUTE_NAMES } from '@/router/routes'
 import { useRoomsStore } from '@/stores/rooms'
 
 const rooms = useRoomsStore()
 const router = useRouter()
 const isCreateRoomOpen = ref(false)
+const isUserSearchOpen = ref(false)
 
 onMounted(() => void rooms.load())
 
+function openConversation(id: ConversationId): void {
+  void router.push({ name: ROUTE_NAMES.chat, params: { id } })
+}
+
 function openRoom(room: Room): void {
   isCreateRoomOpen.value = false
-  void router.push({ name: ROUTE_NAMES.chat, params: { id: room.id } })
+  openConversation(room.id)
+}
+
+function openDirect(direct: DirectConversation): void {
+  isUserSearchOpen.value = false
+  openConversation(direct.id)
 }
 </script>
 
@@ -34,6 +45,9 @@ function openRoom(room: Room): void {
         <RouterLink class="button secondary" :to="{ name: ROUTE_NAMES.discoverRooms }">
           Найти комнату
         </RouterLink>
+        <button type="button" class="button secondary" @click="isUserSearchOpen = true">
+          Новое сообщение
+        </button>
         <button type="button" class="button" @click="isCreateRoomOpen = true">
           Создать комнату
         </button>
@@ -64,6 +78,11 @@ function openRoom(room: Room): void {
       v-if="isCreateRoomOpen"
       @close="isCreateRoomOpen = false"
       @created="openRoom"
+    />
+    <UserSearchDialog
+      v-if="isUserSearchOpen"
+      @close="isUserSearchOpen = false"
+      @opened="openDirect"
     />
   </main>
 </template>
