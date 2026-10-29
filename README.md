@@ -62,7 +62,7 @@ Runs the API for end-to-end tests on https://localhost:5001 with test sign-in (`
 ```
 
 - The database is a clean `signalchat_e2e`, recreated on every run. The development database is never touched.
-- The test sign-in exists only when `E2E_TEST_AUTH=true` (off by default). The API refuses to start with it in any environment other than Development, Testing or E2E.
+- The test sign-in exists only when `E2E_TEST_AUTH=true` (off by default). The API refuses to start with it in any environment other than Testing or E2E (Development included).
 
 ## Google sign-in
 
