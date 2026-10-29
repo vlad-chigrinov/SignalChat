@@ -1,4 +1,6 @@
 .env
+.env.prod
+dist-images/
 .DS_Store
 .mcp.json
 .claude/
