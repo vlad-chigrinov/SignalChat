@@ -9,6 +9,7 @@ import type {
   CurrentUser,
   CursorPage,
   DirectConversation,
+  IncomingDirectRequest,
   Message,
   Room,
   UserId,
@@ -24,6 +25,10 @@ export function buildLoginUrl(returnPath: string): string {
 
 function roomPath(roomId: ConversationId, action: string): string {
   return `/api/rooms/${encodeURIComponent(roomId)}/${action}`
+}
+
+function directPath(conversationId: ConversationId, action: string): string {
+  return `/api/direct-conversations/${encodeURIComponent(conversationId)}/${action}`
 }
 
 function conversationPath(conversationId: ConversationId): string {
@@ -71,11 +76,19 @@ export const httpApi: ChatApi = {
 
   listDirectConversations: () => requestJson<DirectConversation[]>('/api/direct-conversations'),
 
-  openDirectConversation: (userId: UserId) =>
+  sendDirectRequest: (userId: UserId, text: string) =>
     requestJson<DirectConversation>('/api/direct-conversations', {
       method: 'POST',
-      body: jsonBody({ userId }),
+      body: jsonBody({ userId, text }),
     }),
+
+  listIncomingRequests: () => requestJson<IncomingDirectRequest[]>('/api/direct-requests/incoming'),
+
+  acceptRequest: (conversationId) =>
+    requestJson<void>(directPath(conversationId, 'accept'), { method: 'POST' }),
+
+  declineRequest: (conversationId) =>
+    requestJson<void>(directPath(conversationId, 'decline'), { method: 'POST' }),
 
   searchUsers(query, limit) {
     const params = new URLSearchParams({

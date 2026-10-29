@@ -18,6 +18,9 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   room_name_taken: HTTP_CONFLICT,
   room_limit_reached: HTTP_CONFLICT,
   owner_cannot_leave: HTTP_CONFLICT,
+  dm_request_pending: HTTP_CONFLICT,
+  dm_incoming_request_exists: HTTP_CONFLICT,
+  dm_request_limit_reached: HTTP_CONFLICT,
 }
 
 /** The same ApiError the HTTP client raises for this ProblemDetails answer. */

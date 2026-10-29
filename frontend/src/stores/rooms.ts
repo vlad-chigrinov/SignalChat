@@ -104,12 +104,14 @@ export const useRoomsStore = defineStore('rooms', () => {
     rooms.value = rooms.value.filter((room) => room.id !== roomId)
   }
 
-  /** Opens (or reuses) the direct conversation with a user and adds it to the list. */
-  async function openDirect(userId: UserId): Promise<DirectConversation> {
-    const direct = await api.openDirectConversation(userId)
-    if (!directConversations.value.some((item) => item.id === direct.id)) {
-      directConversations.value = [...directConversations.value, direct]
-    }
+  /**
+   * Writes the first message to a user: a request, unless the chat exists already. The answer is
+   * listed with its status (`pending` while the peer has not answered).
+   */
+  async function sendDirectRequest(userId: UserId, text: string): Promise<DirectConversation> {
+    const direct = await api.sendDirectRequest(userId, text)
+    const others = directConversations.value.filter((item) => item.id !== direct.id)
+    directConversations.value = [...others, direct]
     return direct
   }
 
@@ -137,7 +139,7 @@ export const useRoomsStore = defineStore('rooms', () => {
     joinRoom,
     leaveRoom,
     forgetRoom,
-    openDirect,
+    sendDirectRequest,
     reset,
   }
 })

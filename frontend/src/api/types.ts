@@ -32,11 +32,26 @@ export interface Room {
   lastMessage: MessagePreview | null
 }
 
+/**
+ * `accepted`: a chat both sides can write in. `pending`: the caller's own request, not answered
+ * yet (the recipient never sees it in this list).
+ */
+export type DirectStatus = 'accepted' | 'pending'
+
 export interface DirectConversation {
   kind: 'direct'
   id: ConversationId
   peer: UserSummary
+  status: DirectStatus
   lastMessage: MessagePreview | null
+}
+
+/** A request addressed to the caller, waiting for accept or decline. `id` is the conversation id. */
+export interface IncomingDirectRequest {
+  id: ConversationId
+  from: UserSummary
+  text: string
+  createdAt: string
 }
 
 export type Conversation = Room | DirectConversation
@@ -84,6 +99,9 @@ export type ApiErrorCode =
   | 'owner_cannot_leave'
   | 'self_conversation'
   | 'invalid_message'
+  | 'dm_request_pending'
+  | 'dm_incoming_request_exists'
+  | 'dm_request_limit_reached'
 
 export interface CreateRoomInput {
   name: string

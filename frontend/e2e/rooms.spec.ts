@@ -6,7 +6,9 @@ import { openChat, signIn } from './helpers'
 const TAKEN_ROOM_NAME = 'общий'
 /** Seeded in the mock: a room the demo user is not in, found through discovery. */
 const CATALOG_ROOM = 'Шахматы'
-const SEARCHED_USER = 'Ольга Ким'
+/** Has no chat with the demo user, so the first message to them is a request. */
+const SEARCHED_USER = 'Пётр Соколов'
+const REQUEST_TEXT = 'Привет! Есть минутка?'
 const ROOM_NAME_WITH_HTML = '<script>alert(1)</script>'
 const TITLE_HEADING_LEVEL = 1
 
@@ -61,15 +63,19 @@ test('discovers a room, joins it and leaves it again', async ({ page }) => {
   await expect(page.getByRole('link', { name: new RegExp(CATALOG_ROOM) })).toHaveCount(0)
 })
 
-test('finds a user and opens a direct conversation without showing an email', async ({ page }) => {
+test('finds a user, writes the first message as a request, without showing an email', async ({
+  page,
+}) => {
   await signIn(page)
 
   await page.getByRole('button', { name: 'Новое сообщение' }).click()
-  await page.getByLabel('Имя собеседника').fill('Ол')
+  await page.getByLabel('Имя собеседника').fill('Пётр')
   const dialog = page.getByRole('dialog')
   await expect(dialog).not.toContainText('@')
 
   await page.getByRole('button', { name: `Написать: ${SEARCHED_USER}` }).click()
+  await page.getByLabel(`Первое сообщение для ${SEARCHED_USER}`).fill(REQUEST_TEXT)
+  await page.getByRole('button', { name: 'Отправить запрос' }).click()
   await expect(
     page.getByRole('heading', { level: TITLE_HEADING_LEVEL, name: SEARCHED_USER }),
   ).toBeVisible()

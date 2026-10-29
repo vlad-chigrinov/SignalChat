@@ -18,7 +18,11 @@ const title = computed(() =>
     ? `# ${props.conversation.name}`
     : props.conversation.peer.displayName,
 )
-const preview = computed(() => props.conversation.lastMessage?.text ?? 'Сообщений пока нет')
+const preview = computed(() => {
+  const conversation = props.conversation
+  if (conversation.kind === 'direct' && conversation.status === 'pending') return 'Ожидает ответа'
+  return conversation.lastMessage?.text ?? 'Сообщений пока нет'
+})
 const sentAt = computed(() => {
   const last = props.conversation.lastMessage
   return last ? formatMessageTime(last.sentAt) : ''

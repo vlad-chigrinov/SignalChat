@@ -5,6 +5,7 @@ import type {
   CursorPage,
   DirectConversation,
   HistoryQuery,
+  IncomingDirectRequest,
   LoginOutcome,
   Message,
   Room,
@@ -27,9 +28,17 @@ export interface ChatApi {
   /** Idempotent. */
   joinRoom(roomId: ConversationId): Promise<void>
   leaveRoom(roomId: ConversationId): Promise<void>
+  /** The caller's accepted chats, plus their own pending requests (status `pending`). */
   listDirectConversations(): Promise<DirectConversation[]>
-  /** Opens the direct conversation with a user, or returns the existing one. */
-  openDirectConversation(userId: UserId): Promise<DirectConversation>
+  /**
+   * Writes the first message to a user: a request, unless the two already chat. The answer's
+   * `status` tells which: `accepted` (the existing chat) or `pending` (the request).
+   */
+  sendDirectRequest(userId: UserId, text: string): Promise<DirectConversation>
+  /** Requests waiting for the caller's answer. */
+  listIncomingRequests(): Promise<IncomingDirectRequest[]>
+  acceptRequest(conversationId: ConversationId): Promise<void>
+  declineRequest(conversationId: ConversationId): Promise<void>
   /** Other users matched by display name. Never carries an email. */
   searchUsers(query: string, limit: number): Promise<UserSummary[]>
   /** History only. Messages are sent through the realtime hub (C1), never over REST. */

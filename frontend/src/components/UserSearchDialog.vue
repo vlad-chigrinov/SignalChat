@@ -2,6 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 
 import BaseDialog from '@/components/BaseDialog.vue'
+import DirectRequestForm from '@/components/DirectRequestForm.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import type { DirectConversation, UserSummary } from '@/api'
 import { useRoomsStore } from '@/stores/rooms'
@@ -19,8 +20,10 @@ const userSearch = useUserSearchStore()
 const query = ref('')
 const hint = ref<string | null>(null)
 const searchError = ref<string | null>(null)
-const isOpening = ref(false)
-const openError = ref<string | null>(null)
+const isSending = ref(false)
+const sendError = ref<string | null>(null)
+/** The user picked from the results; the request text is written for them next. */
+const chosen = ref<UserSummary | null>(null)
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
 
 async function search(): Promise<void> {
@@ -47,51 +50,68 @@ onBeforeUnmount(() => {
   userSearch.clear()
 })
 
-async function openDirect(user: UserSummary): Promise<void> {
-  openError.value = null
-  isOpening.value = true
+function choose(user: UserSummary): void {
+  sendError.value = null
+  chosen.value = user
+}
+
+/** An accepted chat opens as it is; a new request opens as pending (the view shows it so). */
+async function sendRequest(text: string): Promise<void> {
+  if (chosen.value === null) return
+  sendError.value = null
+  isSending.value = true
   try {
-    const direct = await rooms.openDirect(user.id)
+    const direct = await rooms.sendDirectRequest(chosen.value.id, text)
     emit('opened', direct)
   } catch (error) {
-    openError.value = errorMessage(error)
+    sendError.value = errorMessage(error)
   } finally {
-    isOpening.value = false
+    isSending.value = false
   }
 }
 </script>
 
 <template>
   <BaseDialog title="Новое сообщение" @close="emit('close')">
-    <label class="field">
-      <span>Имя собеседника</span>
-      <input
-        v-model="query"
-        class="input"
-        type="search"
-        autocomplete="off"
-        :aria-describedby="hint ? 'user-search-hint' : undefined"
+    <template v-if="chosen">
+      <p v-if="sendError" class="error" role="alert">{{ sendError }}</p>
+      <DirectRequestForm
+        :peer-name="chosen.displayName"
+        :is-sending="isSending"
+        @submit="sendRequest"
+        @back="chosen = null"
       />
-    </label>
-    <p v-if="hint" id="user-search-hint" class="hint">{{ hint }}</p>
-    <p v-if="searchError" class="error" role="alert">{{ searchError }}</p>
-    <p v-if="openError" class="error" role="alert">{{ openError }}</p>
+    </template>
 
-    <ul v-if="userSearch.results.length > 0" class="results">
-      <li v-for="user in userSearch.results" :key="user.id">
-        <button
-          type="button"
-          class="result"
-          :disabled="isOpening"
-          :aria-label="`Написать: ${user.displayName}`"
-          @click="openDirect(user)"
-        >
-          <UserAvatar :user="user" :size="32" />
-          <span>{{ user.displayName }}</span>
-        </button>
-      </li>
-    </ul>
-    <p v-else-if="hint === null && query.trim() !== ''" class="hint">Никого не нашли.</p>
+    <template v-else>
+      <label class="field">
+        <span>Имя собеседника</span>
+        <input
+          v-model="query"
+          class="input"
+          type="search"
+          autocomplete="off"
+          :aria-describedby="hint ? 'user-search-hint' : undefined"
+        />
+      </label>
+      <p v-if="hint" id="user-search-hint" class="hint">{{ hint }}</p>
+      <p v-if="searchError" class="error" role="alert">{{ searchError }}</p>
+
+      <ul v-if="userSearch.results.length > 0" class="results">
+        <li v-for="user in userSearch.results" :key="user.id">
+          <button
+            type="button"
+            class="result"
+            :aria-label="`Написать: ${user.displayName}`"
+            @click="choose(user)"
+          >
+            <UserAvatar :user="user" :size="32" />
+            <span>{{ user.displayName }}</span>
+          </button>
+        </li>
+      </ul>
+      <p v-else-if="hint === null && query.trim() !== ''" class="hint">Никого не нашли.</p>
+    </template>
   </BaseDialog>
 </template>
 

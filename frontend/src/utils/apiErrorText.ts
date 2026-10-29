@@ -13,6 +13,9 @@ export const API_ERROR_TEXT: Record<ApiErrorCode, string> = {
   owner_cannot_leave: 'Владелец не может выйти, пока в комнате есть другие участники.',
   self_conversation: 'Нельзя начать чат с самим собой.',
   invalid_message: 'Сообщение пустое или слишком длинное.',
+  dm_request_pending: 'Запрос уже отправлен — ждём ответа.',
+  dm_incoming_request_exists: 'Этот пользователь уже написал вам — примите запрос.',
+  dm_request_limit_reached: 'Можно отправить не больше 20 запросов, которые ждут ответа.',
 }
 
 export function isApiErrorCode(code: string): code is ApiErrorCode {

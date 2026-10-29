@@ -8,6 +8,7 @@ const GENERAL_ROOM_MESSAGE_COUNT = 95
 const DEV_ROOM_MESSAGE_COUNT = 12
 const DIRECT_ANNA_MESSAGE_COUNT = 8
 const DIRECT_IGOR_MESSAGE_COUNT = 3
+const REQUEST_AGE_MINUTES = 30
 
 export const mockCurrentUser: CurrentUser = {
   id: 'u-me',
@@ -19,9 +20,11 @@ export const mockCurrentUser: CurrentUser = {
 const anna: UserSummary = { id: 'u-anna', displayName: 'Анна Смирнова', avatarUrl: null }
 const igor: UserSummary = { id: 'u-igor', displayName: 'Игорь Петров', avatarUrl: null }
 const olga: UserSummary = { id: 'u-olga', displayName: 'Ольга Ким', avatarUrl: null }
+/** Has no chat with the demo user: the first message to them is a request. */
+const petr: UserSummary = { id: 'u-petr', displayName: 'Пётр Соколов', avatarUrl: null }
 
 /** Users other than the signed-in one, as the search and direct-conversation rules see them. */
-export const mockDirectory: UserSummary[] = [anna, igor, olga]
+export const mockDirectory: UserSummary[] = [anna, igor, olga, petr]
 
 export const mockOnlineUserIds = [anna.id, olga.id]
 
@@ -58,6 +61,18 @@ export function createSeedStore(): MockStore {
       buildHistory('room-general', [anna, igor, me, olga], GENERAL_ROOM_MESSAGE_COUNT),
     ],
     ['room-dev', buildHistory('room-dev', [igor, me], DEV_ROOM_MESSAGE_COUNT)],
+    [
+      'dm-request-olga',
+      [
+        {
+          id: 'dm-request-olga-m1',
+          conversationId: 'dm-request-olga',
+          author: olga,
+          text: 'Здравствуйте! Можно обсудить релиз?',
+          sentAt: minutesAgo(REQUEST_AGE_MINUTES),
+        },
+      ],
+    ],
     ['room-quiet', []],
     ['room-chess', []],
     ['dm-anna', buildHistory('dm-anna', [anna, me], DIRECT_ANNA_MESSAGE_COUNT)],
@@ -110,8 +125,24 @@ export function createSeedStore(): MockStore {
       ],
     ]),
     directs: new Map([
-      ['dm-anna', { id: 'dm-anna', memberIds: [me.id, anna.id] }],
-      ['dm-igor', { id: 'dm-igor', memberIds: [me.id, igor.id] }],
+      [
+        'dm-anna',
+        { id: 'dm-anna', memberIds: [me.id, anna.id], initiatorId: me.id, status: 'accepted' },
+      ],
+      [
+        'dm-igor',
+        { id: 'dm-igor', memberIds: [me.id, igor.id], initiatorId: me.id, status: 'accepted' },
+      ],
+      // Olga wrote first: a request waiting for the demo user's answer.
+      [
+        'dm-request-olga',
+        {
+          id: 'dm-request-olga',
+          memberIds: [me.id, olga.id],
+          initiatorId: olga.id,
+          status: 'pending',
+        },
+      ],
     ]),
     histories,
     nextId: 1,

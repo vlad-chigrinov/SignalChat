@@ -39,10 +39,19 @@ and statuses). Change the backend, this file, the types and the mock together.
 
 ## Direct conversations
 
-| Method | Path                        | Answer                                                                                                                                                  |
-| ------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/direct-conversations` | 200 `DirectConversation[]`                                                                                                                              |
-| POST   | `/api/direct-conversations` | Body `{ userId }`. 200 `DirectConversation`, both for a new and an existing one. 400 `self_conversation`. 404 `not_found` when the user does not exist. |
+| Method | Path                                     | Answer                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------ | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/direct-conversations`              | 200 `DirectConversation[]`. `status` is `accepted`, or `pending` for the caller's own request that waits for an answer (a declined request is `pending` too, for its writer).                                                                                                                                                                                                                                         |
+| POST   | `/api/direct-conversations`              | Body `{ userId, text }`, the first message. 201 `DirectConversation` with `status: pending` when a request is created or reopened. 200 with `status: accepted` for an existing chat (`text` ignored). 400 `invalid_message` (text empty or over 2000, or `self_conversation` for oneself); 404 `not_found` for an unknown user; 409 `dm_request_pending`, `dm_incoming_request_exists` or `dm_request_limit_reached`. |
+| GET    | `/api/direct-requests/incoming`          | 200 `IncomingDirectRequest[]`: `{ id, from: UserSummary, text, createdAt }`, the requests waiting for the caller's answer. `id` is the conversation id.                                                                                                                                                                                                                                                               |
+| POST   | `/api/direct-conversations/{id}/accept`  | 204. The chat becomes accepted for both sides. 404 `not_found` unless the caller is the recipient of a pending request.                                                                                                                                                                                                                                                                                               |
+| POST   | `/api/direct-conversations/{id}/decline` | 204, silent: the writer is not told. 404 `not_found` as for accept.                                                                                                                                                                                                                                                                                                                                                   |
+
+A request is the first message of a direct conversation. Nobody can write to a user who has not
+answered it: the writer's messages are refused over the hub until the recipient accepts.
+A user may have at most 20 outgoing requests waiting for an answer (`dm_request_limit_reached`).
+A declined request stays silent: its writer gets `dm_request_pending`, the same answer as while it
+waits. The user who declined may write first later, which opens a new request from them.
 
 Rooms and direct conversations share one id space: `/chat/:id` accepts either.
 
@@ -74,16 +83,19 @@ treats a failure as "everyone offline". Live changes come through SignalR `Prese
 
 ## Error codes
 
-| Code                       | Meaning                                           |
-| -------------------------- | ------------------------------------------------- |
-| `not_found`                | Missing, or not a member (never distinguished)    |
-| `invalid_cursor`           | History cursor is malformed                       |
-| `invalid_limit`            | `limit` out of range                              |
-| `query_too_short`          | User search query shorter than 2 characters       |
-| `invalid_room_name`        | Room name not 3..80 characters after trim         |
-| `invalid_room_description` | Room description longer than 300 characters       |
-| `room_name_taken`          | Another room has the same name (case-insensitive) |
-| `room_limit_reached`       | The caller already owns 20 rooms                  |
-| `owner_cannot_leave`       | The owner cannot leave while other members remain |
-| `self_conversation`        | A direct conversation with oneself                |
-| `invalid_message`          | Message empty or longer than 2000 (hub)           |
+| Code                         | Meaning                                                                          |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `not_found`                  | Missing, or not a member (never distinguished)                                   |
+| `invalid_cursor`             | History cursor is malformed                                                      |
+| `invalid_limit`              | `limit` out of range                                                             |
+| `query_too_short`            | User search query shorter than 2 characters                                      |
+| `invalid_room_name`          | Room name not 3..80 characters after trim                                        |
+| `invalid_room_description`   | Room description longer than 300 characters                                      |
+| `room_name_taken`            | Another room has the same name (case-insensitive)                                |
+| `room_limit_reached`         | The caller already owns 20 rooms                                                 |
+| `owner_cannot_leave`         | The owner cannot leave while other members remain                                |
+| `self_conversation`          | A direct conversation with oneself                                               |
+| `invalid_message`            | Message empty or longer than 2000 (hub, and the first message of a request)      |
+| `dm_request_pending`         | The caller's own request to this user waits for an answer (also after a decline) |
+| `dm_incoming_request_exists` | This user already wrote to the caller: answer that request first                 |
+| `dm_request_limit_reached`   | The caller has 20 requests waiting for an answer                                 |

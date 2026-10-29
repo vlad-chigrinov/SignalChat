@@ -14,6 +14,7 @@ const DIRECT: DirectConversation = {
   kind: 'direct',
   id: 'dm-olga',
   peer: { id: 'u-olga', displayName: 'Ольга Ким', avatarUrl: null },
+  status: 'pending',
   lastMessage: null,
 }
 
@@ -78,13 +79,14 @@ describe('rooms store', () => {
     expect(store.rooms).toEqual([])
   })
 
-  it('opens a direct conversation once and reuses it on repeated calls', async () => {
-    vi.spyOn(api, 'openDirectConversation').mockResolvedValue(DIRECT)
+  it('lists a request once, with the status the server answered', async () => {
+    vi.spyOn(api, 'sendDirectRequest').mockResolvedValue(DIRECT)
     const store = useRoomsStore()
 
-    await store.openDirect('u-olga')
-    await store.openDirect('u-olga')
+    await store.sendDirectRequest('u-olga', 'Привет')
+    await store.sendDirectRequest('u-olga', 'Привет')
 
     expect(store.directConversations.map((item) => item.id)).toEqual(['dm-olga'])
+    expect(store.directConversations[0]?.status).toBe('pending')
   })
 })

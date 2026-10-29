@@ -1,5 +1,5 @@
 import type { ConversationId, Message, PresenceChange, UserId, UserSummary } from '@/api'
-import { historyOf, isMember, sharedMockStore } from '@/api/mock/mockHistories'
+import { historyOf, isActiveMember, sharedMockStore } from '@/api/mock/mockHistories'
 
 import { HubCallError, type ChatHub, type Unsubscribe } from './chatHub'
 import {
@@ -194,5 +194,7 @@ export class FakeChatHub implements ChatHub {
 
 /** Unknown conversation and non-member answer the same `not_found` (C3). */
 function requireConversationMember(userId: UserId, conversationId: ConversationId): void {
-  if (!isMember(sharedMockStore(), conversationId, userId)) throw new HubCallError('not_found')
+  if (!isActiveMember(sharedMockStore(), conversationId, userId)) {
+    throw new HubCallError('not_found')
+  }
 }

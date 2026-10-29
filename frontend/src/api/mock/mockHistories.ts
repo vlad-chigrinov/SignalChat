@@ -18,10 +18,16 @@ export interface MockRoom {
   memberIds: Set<UserId>
 }
 
+/** `declined` is kept for the initiator's view only: they see it as `pending` (CONTRACT.md). */
+export type MockDirectStatus = 'accepted' | 'pending' | 'declined'
+
 export interface MockDirect {
   id: ConversationId
-  /** Exactly two members: the signed-in user and the peer. */
+  /** Exactly two members: the user who wrote the first message and the peer. */
   memberIds: UserId[]
+  /** Who wrote the request. Equals the other member once the chat is accepted, too. */
+  initiatorId: UserId
+  status: MockDirectStatus
 }
 
 /**
@@ -57,8 +63,11 @@ export function nextMockId(store: MockStore, prefix: string): ConversationId {
   return id
 }
 
-/** Member of a room or of a direct conversation. Anything else is not a member. */
-export function isMember(
+/**
+ * Active member: a room member, or a member of an accepted direct conversation. This is what
+ * the hub needs to join and to send (a pending request is not a chat yet).
+ */
+export function isActiveMember(
   store: MockStore,
   conversationId: ConversationId,
   userId: UserId,
@@ -66,19 +75,26 @@ export function isMember(
   const room = store.rooms.get(conversationId)
   if (room) return room.memberIds.has(userId)
   const direct = store.directs.get(conversationId)
-  return direct ? direct.memberIds.includes(userId) : false
+  return direct !== undefined && direct.status === 'accepted' && direct.memberIds.includes(userId)
+}
+
+/** Who may read the history: an active member, or the initiator of a request (its own request). */
+function canReadHistory(store: MockStore, conversationId: ConversationId, userId: UserId): boolean {
+  if (isActiveMember(store, conversationId, userId)) return true
+  const direct = store.directs.get(conversationId)
+  return direct !== undefined && direct.initiatorId === userId
 }
 
 /**
- * The server answers `not_found` both for a missing conversation and for one the caller is not
- * a member of (C3). Returns the history of the conversation.
+ * The server answers `not_found` both for a missing conversation and for one the caller may not
+ * read (C3). Returns the history of the conversation.
  */
 export function requireMember(
   store: MockStore,
   conversationId: ConversationId,
   userId: UserId,
 ): Message[] {
-  if (!isMember(store, conversationId, userId)) throw mockError('not_found')
+  if (!canReadHistory(store, conversationId, userId)) throw mockError('not_found')
   return historyOf(store, conversationId)
 }
 

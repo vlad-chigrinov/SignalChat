@@ -4,7 +4,13 @@ import type { ConversationId, CursorPage, Message, UserId } from '../types'
 
 import { mockError } from './mockErrors'
 import { requireMember, sharedMockStore } from './mockHistories'
-import { listMyDirects, openDirectConversation } from './mockDirects'
+import {
+  acceptRequest,
+  declineRequest,
+  listIncomingRequests,
+  listMyDirects,
+  sendDirectRequest,
+} from './mockDirects'
 import { createRoom, discoverRooms, joinRoom, leaveRoom, listMyRooms } from './mockRooms'
 import { searchUsers } from './mockUsers'
 import { mockOnlineUserIds } from './mockData'
@@ -78,8 +84,16 @@ export function createMockApi(options: MockApiOptions = {}): ChatApi {
 
     listDirectConversations: () => delay(listMyDirects(sharedMockStore(), callerId())),
 
-    openDirectConversation: (peerId) =>
-      delay(openDirectConversation(sharedMockStore(), callerId(), peerId)),
+    sendDirectRequest: (peerId, text) =>
+      delay(sendDirectRequest(sharedMockStore(), callerId(), peerId, text)),
+
+    listIncomingRequests: () => delay(listIncomingRequests(sharedMockStore(), callerId())),
+
+    acceptRequest: (conversationId) =>
+      delay(acceptRequest(sharedMockStore(), callerId(), conversationId)),
+
+    declineRequest: (conversationId) =>
+      delay(declineRequest(sharedMockStore(), callerId(), conversationId)),
 
     searchUsers: (query, limit) =>
       delay(

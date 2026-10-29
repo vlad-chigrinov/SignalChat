@@ -4,12 +4,11 @@ import { ApiError } from '../http'
 import { createSeedStore, mockCurrentUser } from '../mock/mockData'
 import { requireMember } from '../mock/mockHistories'
 import { createRoom, discoverRooms, joinRoom, leaveRoom, listMyRooms } from '../mock/mockRooms'
-import { openDirectConversation, listMyDirects } from '../mock/mockDirects'
+import { listMyDirects } from '../mock/mockDirects'
 import { searchUsers } from '../mock/mockUsers'
 
 const ME = mockCurrentUser.id
 const ANNA = 'u-anna'
-const OLGA = 'u-olga'
 const GENERAL = 'room-general'
 const CHESS = 'room-chess'
 const QUIET = 'room-quiet'
@@ -154,23 +153,10 @@ describe('mock direct conversations', () => {
     expect(listMyDirects(store, ME).map((direct) => direct.id)).toEqual(['dm-anna', 'dm-igor'])
   })
 
-  it('opens a new conversation with a user, then reuses it', () => {
+  it('does not list a request the caller has to answer (the recipient sees it as incoming)', () => {
     const store = createSeedStore()
 
-    // Olga has no conversation with the caller in the seed, so the first call creates it.
-    const first = openDirectConversation(store, ME, OLGA)
-    const second = openDirectConversation(store, ME, OLGA)
-
-    expect(first.peer.id).toBe(OLGA)
-    expect(second.id).toBe(first.id)
-    expect(listMyDirects(store, ME).filter((direct) => direct.id === first.id)).toHaveLength(1)
-  })
-
-  it('rejects a conversation with oneself and an unknown user', () => {
-    const store = createSeedStore()
-
-    expectCode(() => openDirectConversation(store, ME, ME), 'self_conversation')
-    expectCode(() => openDirectConversation(store, ME, 'u-nobody'), 'not_found')
+    expect(listMyDirects(store, ME).map((direct) => direct.id)).not.toContain('dm-request-olga')
   })
 })
 
@@ -200,8 +186,8 @@ describe('mock user search', () => {
   it('caps the number of results at the given limit', () => {
     const store = createSeedStore()
 
-    // 'ов' matches Петров and Смирнова.
-    expect(searchUsers(store, ME, 'ов', 10)).toHaveLength(2)
+    // 'ов' matches Петров, Смирнова and Соколов.
+    expect(searchUsers(store, ME, 'ов', 10)).toHaveLength(3)
     expect(searchUsers(store, ME, 'ов', 1)).toHaveLength(1)
   })
 })
