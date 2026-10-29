@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using SignalChat.Api.Auth;
 using SignalChat.Api.Chat.Dto;
+using SignalChat.Api.Chat.RateLimiting;
 using SignalChat.Api.Hubs;
 using SignalChat.Domain.Chat;
 using SignalChat.Infrastructure.Chat;
@@ -13,10 +14,10 @@ public static class RoomEndpoints
     {
         var rooms = api.MapGroup("/rooms");
         rooms.MapGet("/", ListMineAsync);
-        rooms.MapGet("/discover", DiscoverAsync);
-        rooms.MapPost("/", CreateAsync);
-        rooms.MapPost("/{id:guid}/join", JoinAsync);
-        rooms.MapPost("/{id:guid}/leave", LeaveAsync);
+        rooms.MapGet("/discover", DiscoverAsync).RequireRateLimiting(ChatRateLimitPolicies.RoomDiscover);
+        rooms.MapPost("/", CreateAsync).RequireRateLimiting(ChatRateLimitPolicies.RoomCreate);
+        rooms.MapPost("/{id:guid}/join", JoinAsync).RequireRateLimiting(ChatRateLimitPolicies.RoomMembership);
+        rooms.MapPost("/{id:guid}/leave", LeaveAsync).RequireRateLimiting(ChatRateLimitPolicies.RoomMembership);
         return api;
     }
 

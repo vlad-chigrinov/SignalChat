@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
@@ -12,6 +13,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using SignalChat.Api.Auth;
+using SignalChat.Api.Chat.RateLimiting;
 using SignalChat.Domain.Users;
 using SignalChat.Infrastructure.Persistence;
 using SignalChat.Infrastructure.Users;
@@ -31,6 +33,9 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
     // Base64 of 32 fixed bytes: deterministic, test-only.
     private const string TestPersonalDataKey = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
     private const string UnusedPostgres = "Host=localhost;Database=unused";
+
+    // Far above what any ordinary test sends, so the REST limits never interfere with unrelated tests.
+    private const int UnboundedRestPermitsPerMinute = 100000;
 
     // A named shared-cache in-memory database: every DbContext opens its own connection (the hub and REST run
     // concurrently), and the sentinel connection keeps the database alive for the lifetime of this host.
@@ -54,6 +59,9 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
     protected virtual string EnvironmentName => "Testing";
 
     protected virtual bool E2eTestAuthEnabled => false;
+
+    /// <summary>Requests per minute allowed by every REST rate limit. Lowered only by a factory built to test the limit.</summary>
+    protected virtual int RestPermitsPerMinute => UnboundedRestPermitsPerMinute;
 
     public HttpClient CreateApiClient() => CreateClient(new WebApplicationFactoryClientOptions
     {
@@ -90,6 +98,7 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("CORS_ALLOWED_ORIGINS", AllowedOrigin);
         builder.UseSetting(GoogleSettings.ClientIdKey, GoogleConfigured ? FakeGoogle.ClientId : string.Empty);
         builder.UseSetting(GoogleSettings.ClientSecretKey, GoogleConfigured ? FakeGoogle.ClientSecret : string.Empty);
+        ApplyRestRateLimits(builder);
 
         builder.ConfigureTestServices(services =>
         {
@@ -118,6 +127,15 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
         if (disposing)
         {
             _sentinel.Dispose();
+        }
+    }
+
+    private void ApplyRestRateLimits(IWebHostBuilder builder)
+    {
+        var permits = RestPermitsPerMinute.ToString(CultureInfo.InvariantCulture);
+        foreach (var setting in ChatRateLimitOptions.SettingNames)
+        {
+            builder.UseSetting($"{ChatRateLimitOptions.SectionName}:{setting}", permits);
         }
     }
 

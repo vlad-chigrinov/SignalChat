@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using SignalChat.Api.Auth;
+using SignalChat.Api.Chat.RateLimiting;
 using SignalChat.Infrastructure.Chat;
 
 namespace SignalChat.Api.Chat;
@@ -8,7 +9,7 @@ public static class UserSearchEndpoints
 {
     public static RouteGroupBuilder MapUserSearchEndpoints(this RouteGroupBuilder api)
     {
-        api.MapGet("/users/search", SearchAsync);
+        api.MapGet("/users/search", SearchAsync).RequireRateLimiting(ChatRateLimitPolicies.UserSearch);
         return api;
     }
 

@@ -1,5 +1,6 @@
 using SignalChat.Api.Auth;
 using SignalChat.Api.Chat;
+using SignalChat.Api.Chat.RateLimiting;
 using SignalChat.Api.Configuration;
 using SignalChat.Api.Health;
 using SignalChat.Api.Hubs;
@@ -22,6 +23,7 @@ builder.Services.AddFrontendCors(frontend);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ChatRuleExceptionHandler>();
 builder.Services.AddChatSignalR();
+builder.Services.AddChatRestRateLimiting(builder.Configuration);
 
 var app = builder.Build();
 
@@ -37,6 +39,7 @@ app.UseCors();
 app.UseMiddleware<OriginGuardMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapHealthEndpoints();
 app.MapAuthEndpoints();

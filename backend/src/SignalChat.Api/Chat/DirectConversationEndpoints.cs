@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using SignalChat.Api.Auth;
 using SignalChat.Api.Chat.Dto;
+using SignalChat.Api.Chat.RateLimiting;
 using SignalChat.Infrastructure.Chat;
 
 namespace SignalChat.Api.Chat;
@@ -13,7 +14,7 @@ public static class DirectConversationEndpoints
     {
         var direct = api.MapGroup(DirectGroup);
         direct.MapGet("/", ListMineAsync);
-        direct.MapPost("/", GetOrCreateAsync);
+        direct.MapPost("/", GetOrCreateAsync).RequireRateLimiting(ChatRateLimitPolicies.DirectConversationCreate);
         return api;
     }
 
