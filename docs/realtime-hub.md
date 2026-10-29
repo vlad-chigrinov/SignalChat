@@ -22,8 +22,8 @@ Contract for the frontend. The server is the source of truth; if this file and t
 |---|---|---|---|
 | `JoinRoom` | `conversationId: string` | nothing | Accepts a room or a direct conversation id. Membership is checked in the database. Idempotent. Other members get `UserJoined`. |
 | `LeaveRoom` | `conversationId: string` | nothing | Leaves the group and notifies the others with `UserLeft`. A no-op when the connection had not joined. |
-| `SendMessage` | `conversationId: string`, `text: string` | `Message` | Membership is checked on every call. Order: membership, then rate limit, then save to the database, then broadcast `MessageReceived` to the whole group (the sender included). Returns the saved message as the acknowledgement. |
-| `Typing` | `conversationId: string` | nothing | Only for conversations this connection joined. Repeated signals inside the throttle window are dropped silently. Others get `UserTyping`. |
+| `SendMessage` | `conversationId: string`, `text: string` | `Message` | Membership is checked on every call. Order: rate limit, then membership, then save to the database, then broadcast `MessageReceived` to the whole group (the sender included). Returns the saved message as the acknowledgement. |
+| `Typing` | `conversationId: string` | nothing | Only for conversations this connection joined, and the membership is checked in the database again, so a former member gets `not_found`. Repeated signals inside the throttle window are dropped silently. Others get `UserTyping`. |
 
 Text is trimmed. Empty text or text longer than 2000 characters is `invalid_message`.
 

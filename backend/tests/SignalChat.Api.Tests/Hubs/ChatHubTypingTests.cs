@@ -49,6 +49,28 @@ public sealed class ChatHubTypingTests
     }
 
     [Fact]
+    public async Task Typing_AfterLeavingOverRest_IsNotFound()
+    {
+        using var factory = new SignalChatApiFactory();
+        var (_, ownerCookie) = await factory.CreateSessionAsync(HubFixtures.Profile("typing-left-owner"));
+        var (_, peerCookie) = await factory.CreateSessionAsync(HubFixtures.Profile("typing-left-peer"));
+        using var client = factory.CreateApiClient();
+        var roomId = await HubFixtures.CreateRoomAsync(client, ownerCookie);
+        await HubFixtures.JoinRoomAsync(client, peerCookie, roomId);
+        await using var owner = await HubTestClient.ConnectAsync(factory, ownerCookie);
+        await using var peer = await HubTestClient.ConnectAsync(factory, peerCookie);
+        await owner.InvokeAsync("JoinRoom", roomId.ToString());
+        await peer.InvokeAsync("JoinRoom", roomId.ToString());
+        var ownerTyping = new HubEventInbox<UserTypingEventDto>(owner, "UserTyping");
+
+        await HubFixtures.LeaveRoomOverRestAsync(client, peerCookie, roomId);
+        var error = await Assert.ThrowsAsync<HubException>(() => peer.InvokeAsync("Typing", roomId.ToString()));
+
+        Assert.Equal(HubErrorCodes.NotFound, HubTestErrors.CodeOf(error));
+        await ownerTyping.AssertSilenceAsync();
+    }
+
+    [Fact]
     public async Task Typing_IsThrottled_PerUserAndConversation()
     {
         using var factory = new SignalChatApiFactory();

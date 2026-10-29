@@ -45,11 +45,14 @@ public sealed class ChatHub(
         }
 
         await Groups.AddToGroupAsync(Context.ConnectionId, ChatGroups.User(userId));
-        if (presence.ConnectionOpened(userId))
+        // Mark before notifying: if the notify is cancelled or the connection drops during it, the disconnect
+        // still finds the mark and closes the presence count. Otherwise the user would stay "online" forever.
+        var firstConnection = presence.ConnectionOpened(userId);
+        ChatConnectionState.MarkPresenceOpened(Context);
+        if (firstConnection)
         {
             await presenceNotifier.NotifyAsync(userId, isOnline: true, Context.ConnectionAborted);
         }
-        ChatConnectionState.MarkPresenceOpened(Context);
 
         await base.OnConnectedAsync();
     }
@@ -116,13 +119,14 @@ public sealed class ChatHub(
         messaging.SendAsync(CurrentUserId(), ParseConversationId(conversationId), text, Context.ConnectionAborted);
 
     /// <summary>
-    /// Typing hint to the other members. Only for conversations this connection joined (no database read),
-    /// and repeated signals inside the throttle window are dropped silently.
+    /// Typing hint to the other members. Needs a join on this connection, and the membership is checked in the
+    /// database again, so a user who left over REST stops being heard. Repeated signals inside the throttle
+    /// window are dropped silently.
     /// </summary>
     public async Task Typing(string conversationId)
     {
         var id = ParseConversationId(conversationId);
-        if (!ChatConnectionState.Joined(Context).TryGetValue(id, out var conversation))
+        if (!ChatConnectionState.Joined(Context).ContainsKey(id))
         {
             throw HubErrors.NotFound();
         }
@@ -133,6 +137,8 @@ public sealed class ChatHub(
             return;
         }
 
+        var conversation = await access.FindForMemberAsync(userId, id, Context.ConnectionAborted)
+            ?? throw HubErrors.NotFound();
         await Clients.OthersInGroup(ChatGroups.For(conversation)).UserTyping(new UserTypingEventDto(id, userId));
     }
 

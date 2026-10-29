@@ -7,9 +7,10 @@ using SignalChat.Infrastructure.Chat;
 namespace SignalChat.Api.Hubs;
 
 /// <summary>
-/// The send path of the hub. Strict order: membership (not_found) → rate limit (rate_limited) → save to the
+/// The send path of the hub. Strict order: rate limit (rate_limited) → membership (not_found) → save to the
 /// database (text validation happens inside, its <see cref="ChatRuleException"/> becomes a hub error code) →
-/// broadcast to the group. Nothing is broadcast before it is stored.
+/// broadcast to the group. Nothing is broadcast before it is stored. The limit goes first, so an outsider probing
+/// foreign ids spends the rate limit instead of reaching the database for free.
 /// </summary>
 public sealed class ChatMessaging(
     IConversationAccess access,
@@ -19,13 +20,13 @@ public sealed class ChatMessaging(
 {
     public async Task<MessageDto> SendAsync(Guid userId, Guid conversationId, string? text, CancellationToken cancellationToken)
     {
-        var conversation = await access.FindForMemberAsync(userId, conversationId, cancellationToken)
-            ?? throw HubErrors.NotFound();
-
         if (!rateLimiter.TryAcquire(userId))
         {
             throw HubErrors.Of(HubErrorCodes.RateLimited);
         }
+
+        var conversation = await access.FindForMemberAsync(userId, conversationId, cancellationToken)
+            ?? throw HubErrors.NotFound();
 
         MessageView stored;
         try

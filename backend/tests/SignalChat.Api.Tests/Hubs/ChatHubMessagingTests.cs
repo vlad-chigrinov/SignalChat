@@ -148,6 +148,28 @@ public sealed class ChatHubMessagingTests
     }
 
     [Fact]
+    public async Task NonMemberProbing_SpendsTheRateLimitBeforeTheDatabase()
+    {
+        using var factory = new SignalChatApiFactory();
+        var (_, ownerCookie) = await factory.CreateSessionAsync(HubFixtures.Profile("probe-owner"));
+        var (_, outsiderCookie) = await factory.CreateSessionAsync(HubFixtures.Profile("probe-outsider"));
+        using var client = factory.CreateApiClient();
+        var roomId = await HubFixtures.CreateRoomAsync(client, ownerCookie);
+        await using var outsider = await HubTestClient.ConnectAsync(factory, outsiderCookie);
+
+        for (var probe = 0; probe < ChatHubLimits.SendRateLimitPermits; probe++)
+        {
+            var miss = await Assert.ThrowsAsync<HubException>(() =>
+                outsider.InvokeAsync<MessageDto>("SendMessage", roomId.ToString(), "probe"));
+            Assert.Equal(HubErrorCodes.NotFound, HubTestErrors.CodeOf(miss));
+        }
+        var limited = await Assert.ThrowsAsync<HubException>(() =>
+            outsider.InvokeAsync<MessageDto>("SendMessage", roomId.ToString(), "probe"));
+
+        Assert.Equal(HubErrorCodes.RateLimited, HubTestErrors.CodeOf(limited));
+    }
+
+    [Fact]
     public async Task JoinAndLeave_NotifyTheOtherMembers()
     {
         using var factory = new SignalChatApiFactory();
