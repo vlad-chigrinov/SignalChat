@@ -6,7 +6,7 @@ const PROBE_TIMEOUT_MS = 5000
 const HTTP_SUCCESS_MIN = 200
 const HTTP_SUCCESS_MAX = 299
 const START_HINT =
-  'Start the API first in another terminal: ./scripts/e2e-backend.ps1 (Windows) or ./scripts/e2e-backend.sh (macOS / Linux / Git Bash). Then run npm run test:e2e:real again.'
+  'Start the API in the E2E environment first, in another terminal: ./scripts/e2e-backend.ps1 (Windows) or ./scripts/e2e-backend.sh (macOS / Linux / Git Bash). The script sets ASPNETCORE_ENVIRONMENT=E2E and E2E_TEST_AUTH=true. Then run npm run test:e2e:real again.'
 
 /**
  * Answers the HTTP status of a probe, or null when the API cannot be reached at all.
@@ -51,7 +51,7 @@ export default async function globalSetup(): Promise<void> {
   const testLogin = await probe('POST', TEST_LOGIN_PATH, JSON.stringify({ handle: 'globalsetup' }))
   if (!isSuccess(testLogin)) {
     throw new Error(
-      `Test sign-in is not enabled on ${BACKEND_ORIGIN} (status: ${testLogin ?? 'no connection'}). The API must start with E2E_TEST_AUTH=true. ${START_HINT}`,
+      `Test sign-in is not enabled on ${BACKEND_ORIGIN} (status: ${testLogin ?? 'no connection'}). The API must run in the E2E environment with E2E_TEST_AUTH=true. ${START_HINT}`,
     )
   }
 }

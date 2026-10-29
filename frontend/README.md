@@ -30,13 +30,15 @@ Reports and traces (`playwright-report/`, `test-results/`) are git-ignored.
 
 ```sh
 ./scripts/e2e-backend.ps1         # from the repo root, in its own terminal: API on https://localhost:5001
-npm run test:e2e:real             # from frontend/: two users chat through the real SignalR hub
+npm run test:e2e:real             # from frontend/: users chat through the real SignalR hub
 ```
 
-`e2e/real/` runs room chat, direct chat, leave, HTML-as-text and a lost connection with
-catch-up, each user signed in through `POST /auth/test-login`. The run stops with a hint when
-the API is not up or test sign-in is off. Handles and room names are unique per run. Report:
-`playwright-report-real/`.
+The API runs in the E2E environment (`ASPNETCORE_ENVIRONMENT=E2E`, set by the script): the test
+sign-in is enabled there only. `e2e/real/` runs room chat, leave, HTML-as-text, a lost connection
+with catch-up, and direct messages by consent: a first message is a request, which the recipient
+accepts or declines (a declined request stays "waiting" for its writer). Each user is signed in
+through `POST /auth/test-login`. The run stops with a hint when the API is not up or the E2E
+environment is not used. Handles and room names are unique per run. Report: `playwright-report-real/`.
 
 ## Mock or real API
 

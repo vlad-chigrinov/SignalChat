@@ -47,3 +47,32 @@ export function typingLine(page: Page) {
 export function connectionBanner(page: Page) {
   return page.getByRole('status').filter({ hasText: /Переподключение…|Сообщения не отправляются/ })
 }
+
+/** Opens the search dialog, picks `peerName` and writes the first message: a request. */
+export async function sendFirstMessage(page: Page, peerName: string, text: string): Promise<void> {
+  await page.getByRole('button', { name: 'Новое сообщение' }).click()
+  await page.getByLabel('Имя собеседника').fill(peerName)
+  await page.getByRole('button', { name: `Написать: ${peerName}` }).click()
+  await page.getByLabel(`Первое сообщение для ${peerName}`).fill(text)
+  await page.getByRole('button', { name: 'Отправить запрос' }).click()
+}
+
+/** The Requests section of the chat list: incoming requests live here. */
+export function requestsSection(page: Page) {
+  return page.getByRole('region', { name: 'Запросы' })
+}
+
+/** One incoming request, found by its text. */
+export function requestItem(page: Page, text: string) {
+  return page.getByRole('listitem').filter({ hasText: text })
+}
+
+/** The composer's reason while a request waits for the peer's answer. */
+export function awaitingAnswerStatus(page: Page) {
+  return page.getByRole('status').filter({ hasText: 'Ожидает ответа собеседника.' })
+}
+
+/** The subtitle of a chat the user wrote and the peer has not answered yet. */
+export function awaitingAnswerSubtitle(page: Page) {
+  return page.getByText('Ожидает ответа', { exact: true })
+}
