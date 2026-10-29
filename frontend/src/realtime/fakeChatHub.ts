@@ -37,12 +37,20 @@ export class FakeChatHub implements ChatHub {
     PresenceChanged: new Set(),
   }
   private readonly typingSent: ConversationId[] = []
+  private readonly queuedStartFailures: HubCallError[] = []
+  private startCount = 0
   private sentCounter = 0
 
   constructor(private readonly options: FakeChatHubOptions) {}
 
   async start(): Promise<void> {
+    this.startCount += 1
     this.setState('connecting')
+    const failure = this.queuedStartFailures.shift()
+    if (failure) {
+      this.setState('disconnected')
+      throw failure
+    }
     this.setState('connected')
   }
 
@@ -145,6 +153,16 @@ export class FakeChatHub implements ChatHub {
   /** Test inspection: rooms currently joined through this connection. */
   joinedConversations(): ConversationId[] {
     return [...this.joined]
+  }
+
+  /** Test helper: the next `start()` calls fail with these errors, one per call, in order. */
+  failNextStarts(errors: HubCallError[]): void {
+    this.queuedStartFailures.push(...errors)
+  }
+
+  /** Test inspection: how many times the client tried to start the connection. */
+  startAttempts(): number {
+    return this.startCount
   }
 
   /** Test inspection: every `Typing` call the client made, in order. */

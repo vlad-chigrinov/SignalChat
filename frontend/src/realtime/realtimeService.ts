@@ -5,8 +5,18 @@ import { usePresenceStore } from '@/stores/presence'
 import { useTypingStore } from '@/stores/typing'
 import { normalizeMessageText } from '@/utils/messageText'
 
-import { NotConnectedError, type ChatHub, type Unsubscribe } from './chatHub'
-import { TYPING_SEND_INTERVAL_MS } from './hubContract'
+import { HubCallError, NotConnectedError, type ChatHub, type Unsubscribe } from './chatHub'
+import { RECONNECT_DELAYS_MS, TYPING_SEND_INTERVAL_MS } from './hubContract'
+
+/** Delay before retry number `attempt` (0-based). The last delay repeats once the list runs out. */
+function retryDelayMs(attempt: number): number {
+  const lastIndex = RECONNECT_DELAYS_MS.length - 1
+  return RECONNECT_DELAYS_MS[Math.min(attempt, lastIndex)] ?? 0
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
 
 export interface RealtimeService {
   /** Starts the hub and joins the conversations that are already open. */
@@ -40,6 +50,8 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
 
   const openConversationIds = new Set<ConversationId>()
   const lastTypingSentAt = new Map<ConversationId, number>()
+  /** Bumped by every connect and disconnect: a retry loop from an older generation stops. */
+  let connectGeneration = 0
 
   function isConnected(): boolean {
     return hub.currentState() === 'connected'
@@ -80,12 +92,32 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
     hub.onClosed(() => void handleServerClose()),
   ]
 
+  /**
+   * Starts the hub, retrying with RECONNECT_DELAYS_MS until it works or `disconnect()` is called.
+   * A 401 ends the session at once: retrying cannot help, so it is not retried.
+   */
   async function connect(): Promise<void> {
-    await hub.start()
+    connectGeneration += 1
+    const generation = connectGeneration
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await hub.start()
+        break
+      } catch (error) {
+        if (error instanceof HubCallError && error.code === 'unauthenticated') {
+          connection.markSessionEnded()
+          throw error
+        }
+        if (generation !== connectGeneration) return
+        await sleep(retryDelayMs(attempt))
+        if (generation !== connectGeneration) return
+      }
+    }
     await joinOpenConversations()
   }
 
   async function disconnect(): Promise<void> {
+    connectGeneration += 1
     openConversationIds.clear()
     lastTypingSentAt.clear()
     typing.reset()

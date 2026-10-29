@@ -51,7 +51,7 @@ export class SignalrChatHub implements ChatHub {
       this.setState('connected')
     } catch (error) {
       this.setState('disconnected')
-      throw toHubCallError(error)
+      throw toStartError(error)
     }
   }
 
@@ -119,9 +119,19 @@ export class SignalrChatHub implements ChatHub {
   }
 }
 
+const HTTP_UNAUTHORIZED = 401
+
 /** Keeps only the stable code: the raw SignalR message is never shown or logged by the UI. */
 function toHubCallError(error: unknown): HubCallError {
   if (error instanceof HubCallError) return error
   const message = error instanceof Error ? error.message : ''
   return new HubCallError(parseHubErrorCode(message))
+}
+
+/** A failed negotiate answering 401 means the session is gone: retrying cannot help. */
+function toStartError(error: unknown): HubCallError {
+  if (error instanceof signalR.HttpError && error.statusCode === HTTP_UNAUTHORIZED) {
+    return new HubCallError('unauthenticated')
+  }
+  return toHubCallError(error)
 }

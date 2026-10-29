@@ -223,6 +223,44 @@ describe('realtime service', () => {
     })
   })
 
+  describe('start retries', () => {
+    it('retries a failed start until it succeeds, then joins the open conversations', async () => {
+      hub.failNextStarts([new HubCallError('unknown'), new HubCallError('unknown')])
+      await service.openConversation(ROOM)
+
+      const started = service.connect()
+      await vi.runAllTimersAsync()
+      await started
+
+      expect(hub.startAttempts()).toBe(3)
+      expect(hub.currentState()).toBe('connected')
+      expect(hub.joinedConversations()).toEqual([ROOM])
+    })
+
+    it('does not retry a 401 on start: the session is over', async () => {
+      const connection = useConnectionStore()
+      hub.failNextStarts([new HubCallError('unauthenticated')])
+
+      await expect(service.connect()).rejects.toMatchObject({ code: 'unauthenticated' })
+      await vi.runAllTimersAsync()
+
+      expect(hub.startAttempts()).toBe(1)
+      expect(connection.sessionEnded).toBe(true)
+    })
+
+    it('stops retrying once disconnect() is called', async () => {
+      hub.failNextStarts(Array.from({ length: 10 }, () => new HubCallError('unknown')))
+
+      const started = service.connect()
+      await service.disconnect()
+      await vi.runAllTimersAsync()
+      await started
+
+      expect(hub.startAttempts()).toBe(1)
+      expect(hub.currentState()).toBe('disconnected')
+    })
+  })
+
   describe('server-side close', () => {
     it('ends the session when the server closes the connection and the session is rejected', async () => {
       const connection = useConnectionStore()
