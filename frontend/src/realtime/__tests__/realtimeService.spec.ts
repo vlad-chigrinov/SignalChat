@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 import { api, type Message, type UserSummary } from '@/api'
+import { mockCurrentUser } from '@/api/mock/mockData'
+import { resetSharedMockStore } from '@/api/mock/mockHistories'
 import { MAX_MESSAGE_LENGTH } from '@/utils/messageText'
 import { useConnectionStore } from '@/stores/connection'
 import { useMessagesStore } from '@/stores/messages'
@@ -13,7 +15,12 @@ import { FakeChatHub } from '../fakeChatHub'
 import { TYPING_SEND_INTERVAL_MS } from '../hubContract'
 import { createRealtimeService, type RealtimeService } from '../realtimeService'
 
-const ME: UserSummary = { id: 'me', displayName: 'Я', avatarUrl: null }
+/** The signed-in demo user, so the hub's caller is a member of the seeded rooms and DMs. */
+const ME: UserSummary = {
+  id: mockCurrentUser.id,
+  displayName: mockCurrentUser.displayName,
+  avatarUrl: mockCurrentUser.avatarUrl,
+}
 const PEER: UserSummary = { id: 'peer', displayName: 'Пётр', avatarUrl: null }
 const ROOM = 'room-general'
 const DM = 'dm-anna'
@@ -35,6 +42,7 @@ describe('realtime service', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.restoreAllMocks()
+    resetSharedMockStore()
     setActivePinia(createPinia())
     hub = new FakeChatHub({ currentUser: () => ME })
     service = createRealtimeService(hub)

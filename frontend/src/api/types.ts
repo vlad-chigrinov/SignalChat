@@ -67,3 +67,25 @@ export interface PresenceChange {
 }
 
 export type LoginOutcome = 'redirected' | 'signed-in'
+
+/**
+ * Stable `code` of a ProblemDetails answer (see CONTRACT.md). The UI maps codes to text,
+ * never the server's own message.
+ */
+export type ApiErrorCode =
+  | 'not_found'
+  | 'invalid_cursor'
+  | 'invalid_limit'
+  | 'query_too_short'
+  | 'invalid_room_name'
+  | 'invalid_room_description'
+  | 'room_name_taken'
+  | 'room_limit_reached'
+  | 'owner_cannot_leave'
+  | 'self_conversation'
+  | 'invalid_message'
+
+export interface CreateRoomInput {
+  name: string
+  description: string
+}

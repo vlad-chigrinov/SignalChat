@@ -1,5 +1,6 @@
 import type {
   ConversationId,
+  CreateRoomInput,
   CurrentUser,
   CursorPage,
   DirectConversation,
@@ -8,6 +9,7 @@ import type {
   Message,
   Room,
   UserId,
+  UserSummary,
 } from './types'
 
 /** Everything the UI needs from the backend. Implemented by the HTTP client and by the mocks. */
@@ -17,8 +19,19 @@ export interface ChatApi {
   /** Starts Google sign-in. The real client leaves the page; the mock signs in locally. */
   beginLogin(returnPath: string): Promise<LoginOutcome>
   logout(): Promise<void>
+  /** Rooms the caller is a member of. */
   listRooms(): Promise<Room[]>
+  /** Rooms the caller is not a member of, matched by name. */
+  discoverRooms(query: string, limit: number): Promise<Room[]>
+  createRoom(input: CreateRoomInput): Promise<Room>
+  /** Idempotent. */
+  joinRoom(roomId: ConversationId): Promise<void>
+  leaveRoom(roomId: ConversationId): Promise<void>
   listDirectConversations(): Promise<DirectConversation[]>
+  /** Opens the direct conversation with a user, or returns the existing one. */
+  openDirectConversation(userId: UserId): Promise<DirectConversation>
+  /** Other users matched by display name. Never carries an email. */
+  searchUsers(query: string, limit: number): Promise<UserSummary[]>
   /** History only. Messages are sent through the realtime hub (C1), never over REST. */
   getMessages(conversationId: ConversationId, query: HistoryQuery): Promise<CursorPage<Message>>
   getOnlineUserIds(): Promise<UserId[]>

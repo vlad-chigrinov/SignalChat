@@ -1,12 +1,29 @@
+import type { ApiErrorCode } from './types'
+
 const HTTP_NO_CONTENT = 204
 
+/** Failed request. `code` is the stable ProblemDetails `code`, or null when the answer had none. */
 export class ApiError extends Error {
   readonly status: number
+  readonly code: ApiErrorCode | string | null
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code: ApiErrorCode | string | null = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.code = code
+  }
+}
+
+/** Reads `code` from a ProblemDetails body. Anything else (HTML, empty, no code) gives null. */
+export async function readProblemCode(response: Response): Promise<string | null> {
+  try {
+    const body: unknown = await response.json()
+    if (typeof body !== 'object' || body === null) return null
+    const code: unknown = Reflect.get(body, 'code')
+    return typeof code === 'string' && code.length > 0 ? code : null
+  } catch {
+    return null
   }
 }
 
@@ -24,7 +41,8 @@ export async function requestJson<T>(path: string, init: RequestInit = {}): Prom
   const response = await fetch(path, { ...init, headers, credentials: 'same-origin' })
   if (!response.ok) {
     const method = init.method ?? 'GET'
-    throw new ApiError(response.status, `${method} ${path} failed: ${response.status}`)
+    const code = await readProblemCode(response)
+    throw new ApiError(response.status, `${method} ${path} failed: ${response.status}`, code)
   }
   if (response.status === HTTP_NO_CONTENT) return undefined as T
   return (await response.json()) as T

@@ -1,18 +1,30 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Message, UserSummary } from '@/api'
-import { sharedMockHistories } from '@/api/mock/mockHistories'
+import { mockCurrentUser } from '@/api/mock/mockData'
+import { historyOf, resetSharedMockStore, sharedMockStore } from '@/api/mock/mockHistories'
 
 import { HubCallError } from '../chatHub'
 import { FakeChatHub } from '../fakeChatHub'
 
-const ME: UserSummary = { id: 'me', displayName: 'Я', avatarUrl: null }
+/** The signed-in demo user: a member of the seeded rooms and DMs. */
+const ME: UserSummary = {
+  id: mockCurrentUser.id,
+  displayName: mockCurrentUser.displayName,
+  avatarUrl: mockCurrentUser.avatarUrl,
+}
+/** Seeded room the signed-in user is NOT a member of (discovery only). */
+const NON_MEMBER_ROOM = 'room-chess'
 
 function connectedHub(currentUser: UserSummary | null = ME): FakeChatHub {
   return new FakeChatHub({ currentUser: () => currentUser })
 }
 
 describe('FakeChatHub', () => {
+  beforeEach(() => {
+    resetSharedMockStore()
+  })
+
   it('echoes a sent message to listeners, sender included, and acks with it', async () => {
     const hub = connectedHub()
     await hub.start()
@@ -51,13 +63,23 @@ describe('FakeChatHub', () => {
     })
   })
 
+  it('answers not_found for a conversation the caller is not a member of', async () => {
+    const hub = connectedHub()
+    await hub.start()
+
+    await expect(hub.joinRoom(NON_MEMBER_ROOM)).rejects.toMatchObject({ code: 'not_found' })
+    await expect(hub.sendMessage(NON_MEMBER_ROOM, 'x')).rejects.toMatchObject({
+      code: 'not_found',
+    })
+  })
+
   it('stores a sent message in the shared mock history so a later REST read sees it', async () => {
     const hub = connectedHub()
     await hub.start()
 
     const sent = await hub.sendMessage('dm-anna', 'из хаба')
 
-    expect(sharedMockHistories().get('dm-anna')?.at(-1)).toEqual(sent)
+    expect(historyOf(sharedMockStore(), 'dm-anna').at(-1)).toEqual(sent)
   })
 
   it('reports a server-side close to onClosed, but not our own stop', async () => {

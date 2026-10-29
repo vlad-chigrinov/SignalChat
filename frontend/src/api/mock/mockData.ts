@@ -1,9 +1,13 @@
-import type { CurrentUser, DirectConversation, Message, Room, UserSummary } from '../types'
+import type { CurrentUser, Message, UserSummary } from '../types'
+
+import type { MockStore } from './mockHistories'
 
 const MINUTE_MS = 60_000
 const MESSAGE_SPACING_MINUTES = 7
 const GENERAL_ROOM_MESSAGE_COUNT = 95
 const DEV_ROOM_MESSAGE_COUNT = 12
+const DIRECT_ANNA_MESSAGE_COUNT = 8
+const DIRECT_IGOR_MESSAGE_COUNT = 3
 
 export const mockCurrentUser: CurrentUser = {
   id: 'u-me',
@@ -15,6 +19,9 @@ export const mockCurrentUser: CurrentUser = {
 const anna: UserSummary = { id: 'u-anna', displayName: 'Анна Смирнова', avatarUrl: null }
 const igor: UserSummary = { id: 'u-igor', displayName: 'Игорь Петров', avatarUrl: null }
 const olga: UserSummary = { id: 'u-olga', displayName: 'Ольга Ким', avatarUrl: null }
+
+/** Users other than the signed-in one, as the search and direct-conversation rules see them. */
+export const mockDirectory: UserSummary[] = [anna, igor, olga]
 
 export const mockOnlineUserIds = [anna.id, olga.id]
 
@@ -42,24 +49,71 @@ function buildHistory(conversationId: string, authors: UserSummary[], count: num
   }))
 }
 
-export function createMockHistories(): Map<string, Message[]> {
-  const generalAuthors = [anna, igor, mockCurrentUser, olga]
-  return new Map([
-    ['room-general', buildHistory('room-general', generalAuthors, GENERAL_ROOM_MESSAGE_COUNT)],
-    ['room-dev', buildHistory('room-dev', [igor, mockCurrentUser], DEV_ROOM_MESSAGE_COUNT)],
+/** The demo data a fresh page starts with. Pure: every call returns a new, independent store. */
+export function createSeedStore(): MockStore {
+  const me = mockCurrentUser
+  const histories = new Map<string, Message[]>([
+    [
+      'room-general',
+      buildHistory('room-general', [anna, igor, me, olga], GENERAL_ROOM_MESSAGE_COUNT),
+    ],
+    ['room-dev', buildHistory('room-dev', [igor, me], DEV_ROOM_MESSAGE_COUNT)],
     ['room-quiet', []],
-    ['dm-anna', buildHistory('dm-anna', [anna, mockCurrentUser], 8)],
-    ['dm-igor', buildHistory('dm-igor', [mockCurrentUser, igor], 3)],
+    ['room-chess', []],
+    ['dm-anna', buildHistory('dm-anna', [anna, me], DIRECT_ANNA_MESSAGE_COUNT)],
+    ['dm-igor', buildHistory('dm-igor', [me, igor], DIRECT_IGOR_MESSAGE_COUNT)],
   ])
+  return {
+    currentUser: me,
+    directory: mockDirectory.map((user) => ({ ...user })),
+    rooms: new Map([
+      [
+        'room-general',
+        {
+          id: 'room-general',
+          name: 'Общий',
+          description: 'Обо всём',
+          ownerId: anna.id,
+          memberIds: new Set([anna.id, igor.id, olga.id, me.id]),
+        },
+      ],
+      [
+        'room-dev',
+        {
+          id: 'room-dev',
+          name: 'Разработка',
+          description: 'Код и релизы',
+          ownerId: igor.id,
+          memberIds: new Set([igor.id, me.id]),
+        },
+      ],
+      [
+        'room-quiet',
+        {
+          id: 'room-quiet',
+          name: 'Тихая',
+          description: 'Пока пусто',
+          ownerId: me.id,
+          memberIds: new Set([me.id]),
+        },
+      ],
+      // Not a member: shows up only in discovery.
+      [
+        'room-chess',
+        {
+          id: 'room-chess',
+          name: 'Шахматы',
+          description: 'Партии и разборы',
+          ownerId: anna.id,
+          memberIds: new Set([anna.id, igor.id]),
+        },
+      ],
+    ]),
+    directs: new Map([
+      ['dm-anna', { id: 'dm-anna', memberIds: [me.id, anna.id] }],
+      ['dm-igor', { id: 'dm-igor', memberIds: [me.id, igor.id] }],
+    ]),
+    histories,
+    nextId: 1,
+  }
 }
-
-export const mockRooms: Omit<Room, 'lastMessage'>[] = [
-  { kind: 'room', id: 'room-general', name: 'Общий', description: 'Обо всём', memberCount: 42 },
-  { kind: 'room', id: 'room-dev', name: 'Разработка', description: 'Код и релизы', memberCount: 9 },
-  { kind: 'room', id: 'room-quiet', name: 'Тихая', description: 'Пока пусто', memberCount: 1 },
-]
-
-export const mockDirects: Omit<DirectConversation, 'lastMessage'>[] = [
-  { kind: 'direct', id: 'dm-anna', peer: anna },
-  { kind: 'direct', id: 'dm-igor', peer: igor },
-]

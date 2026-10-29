@@ -1,12 +1,17 @@
 import type { ChatApi } from '../contract'
-import { ApiError } from '../http'
-import type { Message, MessagePreview } from '../types'
-import { mockCurrentUser, mockDirects, mockOnlineUserIds, mockRooms } from './mockData'
-import { sharedMockHistories } from './mockHistories'
+import { DISCOVER_MAX_LIMIT, HISTORY_MAX_LIMIT, USER_SEARCH_MAX_LIMIT, clampLimit } from '../limits'
+import type { ConversationId, CursorPage, Message, UserId } from '../types'
+
+import { mockError } from './mockErrors'
+import { requireMember, sharedMockStore } from './mockHistories'
+import { listMyDirects, openDirectConversation } from './mockDirects'
+import { createRoom, discoverRooms, joinRoom, leaveRoom, listMyRooms } from './mockRooms'
+import { searchUsers } from './mockUsers'
+import { mockOnlineUserIds } from './mockData'
 
 /** Simulated network latency, so loading states are visible. */
 const MOCK_LATENCY_MS = 300
-const HTTP_NOT_FOUND = 404
+const CURSOR_PATTERN = /^\d+$/
 
 function delay<T>(value: T): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), MOCK_LATENCY_MS))
@@ -15,8 +20,15 @@ function delay<T>(value: T): Promise<T> {
 /** Cursor = index (exclusive) of the oldest message already delivered. */
 function parseCursor(before: string | null, total: number): number {
   if (before === null) return total
-  const index = Number.parseInt(before, 10)
-  return Number.isNaN(index) ? total : Math.min(Math.max(index, 0), total)
+  const index = CURSOR_PATTERN.test(before) ? Number(before) : Number.NaN
+  if (!Number.isInteger(index) || index > total) throw mockError('invalid_cursor')
+  return index
+}
+
+function checkLimit(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 1 || limit > HISTORY_MAX_LIMIT) {
+    throw mockError('invalid_limit')
+  }
 }
 
 export interface MockApiOptions {
@@ -25,27 +37,21 @@ export interface MockApiOptions {
 }
 
 /**
- * In-memory fake REST backend (read-only: messages are sent through the hub). A production
- * build never calls it, so the bundler drops this module and the demo data with it.
+ * In-memory fake REST backend. It follows the same rules and error codes as the server
+ * (CONTRACT.md) and shares its data with the fake hub. A production build never calls it, so
+ * the bundler drops this module and the demo data with it.
  */
 export function createMockApi(options: MockApiOptions = {}): ChatApi {
-  const histories = sharedMockHistories()
   // Kept in memory only: a page reload starts signed in again.
   let isSignedIn = !options.startSignedOut
 
-  function historyOf(conversationId: string): Message[] {
-    const history = histories.get(conversationId)
-    if (!history) throw new ApiError(HTTP_NOT_FOUND, `Unknown conversation ${conversationId}`)
-    return history
-  }
-
-  function lastPreview(conversationId: string): MessagePreview | null {
-    const last = historyOf(conversationId).at(-1)
-    return last ? { authorId: last.author.id, text: last.text, sentAt: last.sentAt } : null
+  /** The signed-in user the rules act for. Read per call, so a reset store is picked up. */
+  function callerId(): UserId {
+    return sharedMockStore().currentUser.id
   }
 
   return {
-    getCurrentUser: () => delay(isSignedIn ? mockCurrentUser : null),
+    getCurrentUser: () => delay(isSignedIn ? sharedMockStore().currentUser : null),
 
     beginLogin() {
       isSignedIn = true
@@ -57,20 +63,40 @@ export function createMockApi(options: MockApiOptions = {}): ChatApi {
       return delay(undefined)
     },
 
-    listRooms: () =>
-      delay(mockRooms.map((room) => ({ ...room, lastMessage: lastPreview(room.id) }))),
+    listRooms: () => delay(listMyRooms(sharedMockStore(), callerId())),
 
-    listDirectConversations: () =>
-      delay(mockDirects.map((direct) => ({ ...direct, lastMessage: lastPreview(direct.id) }))),
+    discoverRooms: (query, limit) =>
+      delay(
+        discoverRooms(sharedMockStore(), callerId(), query, clampLimit(limit, DISCOVER_MAX_LIMIT)),
+      ),
 
-    async getMessages(conversationId, { before, limit }) {
-      const history = historyOf(conversationId)
+    createRoom: (input) => delay(createRoom(sharedMockStore(), callerId(), input)),
+
+    joinRoom: (roomId) => delay(joinRoom(sharedMockStore(), callerId(), roomId)),
+
+    leaveRoom: (roomId) => delay(leaveRoom(sharedMockStore(), callerId(), roomId)),
+
+    listDirectConversations: () => delay(listMyDirects(sharedMockStore(), callerId())),
+
+    openDirectConversation: (peerId) =>
+      delay(openDirectConversation(sharedMockStore(), callerId(), peerId)),
+
+    searchUsers: (query, limit) =>
+      delay(
+        searchUsers(sharedMockStore(), callerId(), query, clampLimit(limit, USER_SEARCH_MAX_LIMIT)),
+      ),
+
+    async getMessages(conversationId: ConversationId, { before, limit }) {
+      const store = sharedMockStore()
+      const history: Message[] = requireMember(store, conversationId, callerId())
+      checkLimit(limit)
       const end = parseCursor(before, history.length)
       const start = Math.max(0, end - limit)
-      return delay({
+      const page: CursorPage<Message> = {
         items: history.slice(start, end),
         nextCursor: start > 0 ? String(start) : null,
-      })
+      }
+      return delay(page)
     },
 
     getOnlineUserIds: () => delay([...mockOnlineUserIds]),

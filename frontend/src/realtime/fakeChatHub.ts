@@ -1,5 +1,5 @@
-import type { ConversationId, Message, PresenceChange, UserSummary } from '@/api'
-import { sharedMockHistories } from '@/api/mock/mockHistories'
+import type { ConversationId, Message, PresenceChange, UserId, UserSummary } from '@/api'
+import { historyOf, isMember, sharedMockStore } from '@/api/mock/mockHistories'
 
 import { HubCallError, type ChatHub, type Unsubscribe } from './chatHub'
 import {
@@ -19,8 +19,9 @@ export interface FakeChatHubOptions {
 
 /**
  * In-memory hub for unit tests and mock mode. It follows the same contract as the server:
- * a call needs a connection and a known conversation (else `not_found`), a sent message is
- * stored in the shared mock history and echoed to every listener (sender included).
+ * a call needs a connection, and the caller must be a member of the conversation (else
+ * `not_found`). A sent message is stored in the shared mock history and echoed to every
+ * listener (sender included).
  * The `emit*`, `simulate*` helpers play the server's part in tests.
  */
 export class FakeChatHub implements ChatHub {
@@ -66,7 +67,8 @@ export class FakeChatHub implements ChatHub {
 
   async joinRoom(conversationId: ConversationId): Promise<void> {
     this.requireConnected()
-    requireKnownConversation(conversationId)
+    const caller = this.requireCaller()
+    requireConversationMember(caller.id, conversationId)
     this.joined.add(conversationId)
   }
 
@@ -77,9 +79,8 @@ export class FakeChatHub implements ChatHub {
 
   async sendMessage(conversationId: ConversationId, text: string): Promise<Message> {
     this.requireConnected()
-    const author = this.options.currentUser()
-    if (!author) throw new HubCallError('unauthenticated')
-    const history = requireKnownConversation(conversationId)
+    const author = this.requireCaller()
+    requireConversationMember(author.id, conversationId)
     this.sentCounter += 1
     const message: Message = {
       id: `fake-${this.sentCounter}`,
@@ -88,7 +89,7 @@ export class FakeChatHub implements ChatHub {
       text,
       sentAt: new Date().toISOString(),
     }
-    history.push(message)
+    historyOf(sharedMockStore(), conversationId).push(message)
     this.emitMessage(message)
     return message
   }
@@ -179,15 +180,19 @@ export class FakeChatHub implements ChatHub {
     if (this.state !== 'connected') throw new HubCallError('unknown')
   }
 
+  private requireCaller(): UserSummary {
+    const caller = this.options.currentUser()
+    if (!caller) throw new HubCallError('unauthenticated')
+    return caller
+  }
+
   private setState(next: ConnectionState): void {
     this.state = next
     this.stateListeners.forEach((listener) => listener(next))
   }
 }
 
-/** Unknown conversation (and, on the server, any non-member) answers `not_found`. */
-function requireKnownConversation(conversationId: ConversationId): Message[] {
-  const history = sharedMockHistories().get(conversationId)
-  if (!history) throw new HubCallError('not_found')
-  return history
+/** Unknown conversation and non-member answer the same `not_found` (C3). */
+function requireConversationMember(userId: UserId, conversationId: ConversationId): void {
+  if (!isMember(sharedMockStore(), conversationId, userId)) throw new HubCallError('not_found')
 }
