@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using SignalChat.Domain.Chat;
 
@@ -9,18 +10,16 @@ public static class ChatConnectionState
     private const string JoinedKey = "chat.joined";
     private const string PresenceOpenedKey = "chat.presenceOpened";
 
-    /// <summary>The conversations this connection joined. Only these may receive typing signals.</summary>
-    public static Dictionary<Guid, ConversationRef> Joined(HubCallerContext context)
-    {
-        if (context.Items.TryGetValue(JoinedKey, out var existing) && existing is Dictionary<Guid, ConversationRef> joined)
-        {
-            return joined;
-        }
+    /// <summary>
+    /// Stores the joined map of this connection. The same instance is held by the connection registry, so a REST
+    /// leave can clear entries from another thread; the map is thread-safe for that reason.
+    /// </summary>
+    public static void Attach(HubCallerContext context, ConcurrentDictionary<Guid, ConversationRef> joined) =>
+        context.Items[JoinedKey] = joined;
 
-        var created = new Dictionary<Guid, ConversationRef>();
-        context.Items[JoinedKey] = created;
-        return created;
-    }
+    /// <summary>The conversations this connection joined. Only these may receive typing signals.</summary>
+    public static ConcurrentDictionary<Guid, ConversationRef> Joined(HubCallerContext context) =>
+        (ConcurrentDictionary<Guid, ConversationRef>)context.Items[JoinedKey]!;
 
     public static void MarkPresenceOpened(HubCallerContext context) => context.Items[PresenceOpenedKey] = true;
 

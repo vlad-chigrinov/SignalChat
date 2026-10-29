@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using SignalChat.Api.Auth;
@@ -36,7 +37,9 @@ public sealed class ChatHub(
 
         // Register first, then re-check the session. A logout that lands before the check aborts this connection
         // (it is already registered); one that lands after the check finds it in the registry. No window is left.
-        connections.Register(Context.UserIdentifier!, Context);
+        var joined = new ConcurrentDictionary<Guid, ConversationRef>();
+        connections.Register(Context.UserIdentifier!, Context, joined);
+        ChatConnectionState.Attach(Context, joined);
         if (!await sessionGuard.IsStillValidAsync(Context.User!, Context.ConnectionAborted))
         {
             connections.Unregister(Context.UserIdentifier!, Context.ConnectionId);
@@ -103,7 +106,7 @@ public sealed class ChatHub(
     public async Task LeaveRoom(string conversationId)
     {
         var id = ParseConversationId(conversationId);
-        if (!ChatConnectionState.Joined(Context).Remove(id, out var conversation))
+        if (!ChatConnectionState.Joined(Context).TryRemove(id, out var conversation))
         {
             return;
         }

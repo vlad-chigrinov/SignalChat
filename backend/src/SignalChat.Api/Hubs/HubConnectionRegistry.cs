@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
+using SignalChat.Domain.Chat;
 
 namespace SignalChat.Api.Hubs;
 
@@ -11,16 +12,16 @@ namespace SignalChat.Api.Hubs;
 public sealed class HubConnectionRegistry : IHubConnectionRegistry
 {
     private readonly object _gate = new();
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, HubCallerContext>> _connectionsByUser =
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, HubConnectionEntry>> _connectionsByUser =
         new(StringComparer.Ordinal);
 
-    public void Register(string userId, HubCallerContext connection)
+    public void Register(string userId, HubCallerContext connection, ConcurrentDictionary<Guid, ConversationRef> joined)
     {
         lock (_gate)
         {
             var connections = _connectionsByUser.GetOrAdd(
-                userId, _ => new ConcurrentDictionary<string, HubCallerContext>(StringComparer.Ordinal));
-            connections[connection.ConnectionId] = connection;
+                userId, _ => new ConcurrentDictionary<string, HubConnectionEntry>(StringComparer.Ordinal));
+            connections[connection.ConnectionId] = new HubConnectionEntry(connection.ConnectionId, connection, joined);
         }
     }
 
@@ -41,19 +42,19 @@ public sealed class HubConnectionRegistry : IHubConnectionRegistry
         }
     }
 
-    public IReadOnlyCollection<string> ConnectionIds(string userId)
+    public IReadOnlyCollection<HubConnectionEntry> ConnectionsOf(string userId)
     {
         lock (_gate)
         {
             return _connectionsByUser.TryGetValue(userId, out var connections)
-                ? connections.Keys.ToArray()
+                ? connections.Values.ToArray()
                 : [];
         }
     }
 
     public void AbortAll(string userId)
     {
-        HubCallerContext[] victims;
+        HubConnectionEntry[] victims;
         lock (_gate)
         {
             if (!_connectionsByUser.TryRemove(userId, out var connections))
@@ -65,7 +66,7 @@ public sealed class HubConnectionRegistry : IHubConnectionRegistry
 
         foreach (var connection in victims)
         {
-            connection.Abort();
+            connection.Context.Abort();
         }
     }
 }

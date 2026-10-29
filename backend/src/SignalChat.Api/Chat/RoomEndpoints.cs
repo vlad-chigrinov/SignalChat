@@ -78,7 +78,7 @@ public static class RoomEndpoints
 
         await rooms.LeaveAsync(userId, id, cancellationToken);
         // A former member must stop receiving the room's live messages right away, not after a reconnect.
-        await hubGroups.RemoveUserAsync(userId, new ConversationRef(ConversationKind.Room, id));
+        await hubGroups.RemoveUserAsync(userId, new ConversationRef(ConversationKind.Room, id), cancellationToken);
         return Results.NoContent();
     }
 }
