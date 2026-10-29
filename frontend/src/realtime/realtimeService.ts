@@ -6,7 +6,7 @@ import { useTypingStore } from '@/stores/typing'
 import { normalizeMessageText } from '@/utils/messageText'
 
 import { HubCallError, NotConnectedError, type ChatHub, type Unsubscribe } from './chatHub'
-import { TYPING_SEND_INTERVAL_MS } from './hubContract'
+import { TYPING_SEND_INTERVAL_MS, TYPING_TRAILING_MARGIN_MS } from './hubContract'
 import { retryDelayMs } from './retryDelay'
 
 function sleep(milliseconds: number): Promise<void> {
@@ -45,6 +45,8 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
 
   const openConversationIds = new Set<ConversationId>()
   const lastTypingSentAt = new Map<ConversationId, number>()
+  /** One pending trailing hint per conversation, sent when the throttle window has passed. */
+  const trailingTypingTimers = new Map<ConversationId, ReturnType<typeof setTimeout>>()
   /** Bumped by every connect and disconnect: a retry loop from an older generation stops. */
   let connectGeneration = 0
 
@@ -115,6 +117,8 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
     connectGeneration += 1
     openConversationIds.clear()
     lastTypingSentAt.clear()
+    trailingTypingTimers.forEach((timer) => clearTimeout(timer))
+    trailingTypingTimers.clear()
     typing.reset()
     await hub.stop()
   }
@@ -133,6 +137,7 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
   async function closeConversation(conversationId: ConversationId): Promise<void> {
     openConversationIds.delete(conversationId)
     lastTypingSentAt.delete(conversationId)
+    cancelTrailingTyping(conversationId)
     typing.clearConversation(conversationId)
     if (!isConnected()) return
     await hub.leaveRoom(conversationId).catch(() => undefined)
@@ -141,24 +146,57 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
   async function sendMessage(conversationId: ConversationId, rawText: string): Promise<Message> {
     const text = normalizeMessageText(rawText)
     if (!isConnected()) throw new NotConnectedError()
+    // A sent message ends the typing, so a pending hint for this conversation is dropped.
+    cancelTrailingTyping(conversationId)
     const message = await hub.sendMessage(conversationId, text)
     // The hub echoes the message to the group too: mergeMessages keeps only one copy.
     messages.applyIncomingMessage(message)
     return message
   }
 
-  function notifyTyping(conversationId: ConversationId): void {
+  function sendTyping(conversationId: ConversationId): void {
     if (!isConnected()) return
-    const now = Date.now()
-    const lastSentAt = lastTypingSentAt.get(conversationId)
-    if (lastSentAt !== undefined && now - lastSentAt < TYPING_SEND_INTERVAL_MS) return
-    lastTypingSentAt.set(conversationId, now)
+    cancelTrailingTyping(conversationId)
+    lastTypingSentAt.set(conversationId, Date.now())
     // Typing is a hint, not a message: a failed call is not worth reporting.
     void hub.typing(conversationId).catch(() => undefined)
   }
 
+  function cancelTrailingTyping(conversationId: ConversationId): void {
+    const timer = trailingTypingTimers.get(conversationId)
+    if (timer === undefined) return
+    clearTimeout(timer)
+    trailingTypingTimers.delete(conversationId)
+  }
+
+  /** Inside the throttle window the keystroke is not lost: one hint is sent when the window ends. */
+  function scheduleTrailingTyping(conversationId: ConversationId, delayMs: number): void {
+    if (trailingTypingTimers.has(conversationId)) return
+    const timer = setTimeout(() => {
+      trailingTypingTimers.delete(conversationId)
+      sendTyping(conversationId)
+    }, delayMs)
+    trailingTypingTimers.set(conversationId, timer)
+  }
+
+  function notifyTyping(conversationId: ConversationId): void {
+    if (!isConnected()) return
+    const lastSentAt = lastTypingSentAt.get(conversationId)
+    const elapsedMs = lastSentAt === undefined ? TYPING_SEND_INTERVAL_MS : Date.now() - lastSentAt
+    if (elapsedMs >= TYPING_SEND_INTERVAL_MS) {
+      sendTyping(conversationId)
+      return
+    }
+    scheduleTrailingTyping(
+      conversationId,
+      TYPING_SEND_INTERVAL_MS - elapsedMs + TYPING_TRAILING_MARGIN_MS,
+    )
+  }
+
   function dispose(): void {
     unsubscribers.forEach((unsubscribe) => unsubscribe())
+    trailingTypingTimers.forEach((timer) => clearTimeout(timer))
+    trailingTypingTimers.clear()
   }
 
   return {

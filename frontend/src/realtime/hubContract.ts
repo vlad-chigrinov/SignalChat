@@ -27,6 +27,11 @@ export const HUB_EVENTS = {
 export const TYPING_INDICATOR_TIMEOUT_MS = 4000
 /** Minimum gap between two `Typing` calls for one conversation. The server throttles at 2 s too. */
 export const TYPING_SEND_INTERVAL_MS = 2000
+/**
+ * A keystroke inside the interval is sent once more when the interval has passed, so a short
+ * burst still shows. The margin keeps that call outside the server's window too.
+ */
+export const TYPING_TRAILING_MARGIN_MS = 250
 /** Delays before each automatic reconnect attempt. */
 export const RECONNECT_DELAYS_MS: readonly number[] = [0, 2000, 5000, 10000, 30000]
 

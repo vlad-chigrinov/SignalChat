@@ -12,7 +12,7 @@ import { useTypingStore } from '@/stores/typing'
 
 import { HubCallError, NotConnectedError } from '../chatHub'
 import { FakeChatHub } from '../fakeChatHub'
-import { TYPING_SEND_INTERVAL_MS } from '../hubContract'
+import { TYPING_SEND_INTERVAL_MS, TYPING_TRAILING_MARGIN_MS } from '../hubContract'
 import { createRealtimeService, type RealtimeService } from '../realtimeService'
 
 /** The signed-in demo user, so the hub's caller is a member of the seeded rooms and DMs. */
@@ -212,6 +212,29 @@ describe('realtime service', () => {
       vi.advanceTimersByTime(TYPING_SEND_INTERVAL_MS)
       service.notifyTyping(ROOM)
       expect(hub.typingCalls()).toEqual([ROOM, DM, ROOM])
+    })
+
+    it('sends one trailing hint when keystrokes came inside the window', async () => {
+      await service.connect()
+
+      service.notifyTyping(ROOM)
+      service.notifyTyping(ROOM)
+      service.notifyTyping(ROOM)
+      expect(hub.typingCalls()).toEqual([ROOM])
+
+      vi.advanceTimersByTime(TYPING_SEND_INTERVAL_MS + TYPING_TRAILING_MARGIN_MS)
+      expect(hub.typingCalls()).toEqual([ROOM, ROOM])
+    })
+
+    it('drops the trailing hint once a message is sent in the conversation', async () => {
+      await service.connect()
+
+      service.notifyTyping(ROOM)
+      service.notifyTyping(ROOM)
+      await service.sendMessage(ROOM, 'привет')
+      vi.advanceTimersByTime(TYPING_SEND_INTERVAL_MS + TYPING_TRAILING_MARGIN_MS)
+
+      expect(hub.typingCalls()).toEqual([ROOM])
     })
 
     it('sends nothing while disconnected', () => {
