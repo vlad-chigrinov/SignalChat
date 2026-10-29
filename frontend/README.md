@@ -52,6 +52,27 @@ The dev server forwards `/api`, `/auth` and `/hubs` (WebSocket enabled, for Sign
 to the backend over HTTPS. Default target: `https://localhost:5001`. To change it,
 copy `.env.example` to `.env` and set `BACKEND_URL`. The `.env` file is git-ignored.
 
+## Container image
+
+```sh
+docker build -t signalchat-web .        # from frontend/: builds the app and the nginx image locally
+docker run --rm -p 18080:8080 signalchat-web
+```
+
+The image runs nginx as a non-root user (`nginxinc/nginx-unprivileged`) on port 8080 and
+serves only `dist/`. In production, Traefik sends `/api`, `/auth`, `/hubs` and `/health` to the
+backend and everything else to this container, so the app and the API share one origin.
+
+- `nginx.conf`: the server block (SPA fallback to `index.html`, `/healthz` for the health check,
+  `/assets/` cached as immutable, `index.html` revalidated on every load, gzip, `server_tokens off`).
+- `nginx-security-headers.conf`: the headers on every response. The Content-Security-Policy is
+  the one of `vite.csp.ts` plus `frame-ancestors 'none'` (the meta tag cannot carry it).
+  `nginx.csp.spec.ts` fails if the two drift apart. No `Strict-Transport-Security`: Traefik sets it.
+- `Referrer-Policy` is `strict-origin-when-cross-origin`: Google avatars load cross-origin and
+  keep working, while other sites only see the origin, never a path.
+
+Build the image on a development machine, never on the production host.
+
 ## Routes
 
 | Path        | View             |
