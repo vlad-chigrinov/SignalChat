@@ -22,6 +22,7 @@ public static class ChatSignalRRegistration
         services.AddScoped<HubGroupMembership>();
         services.AddScoped<HubSessionGuard>();
         services.AddScoped<ChatMessaging>();
+        services.AddScoped<ConversationJoin>();
         return services;
     }
 }

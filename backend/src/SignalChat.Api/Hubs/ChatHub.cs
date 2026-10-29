@@ -23,6 +23,7 @@ public sealed class ChatHub(
     IConversationAccess access,
     IUserDirectory users,
     ChatMessaging messaging,
+    ConversationJoin joins,
     ITypingThrottle typingThrottle) : Hub<IChatClient>
 {
     public const string Route = "/hubs/chat";
@@ -93,12 +94,10 @@ public sealed class ChatHub(
         }
 
         var userId = CurrentUserId();
-        var conversation = await FindMemberAsync(userId, id);
-        var group = ChatGroups.For(conversation);
-        await Groups.AddToGroupAsync(Context.ConnectionId, group);
-        joined[id] = conversation;
+        var conversation = await joins.JoinAsync(
+            userId, id, Context.ConnectionId, Groups, joined, Context.ConnectionAborted);
 
-        await Clients.OthersInGroup(group).UserJoined(
+        await Clients.OthersInGroup(ChatGroups.For(conversation)).UserJoined(
             new ConversationMemberEventDto(id, await CurrentUserSummaryAsync(userId)));
     }
 
@@ -153,11 +152,6 @@ public sealed class ChatHub(
     /// <summary>A malformed id is "not found", never a validation message: the caller learns nothing about ids.</summary>
     private static Guid ParseConversationId(string conversationId) =>
         Guid.TryParse(conversationId, out var id) ? id : throw HubErrors.NotFound();
-
-    /// <summary>The single membership check of the hub, the same one REST uses.</summary>
-    private async Task<ConversationRef> FindMemberAsync(Guid userId, Guid conversationId) =>
-        await access.FindForMemberAsync(userId, conversationId, Context.ConnectionAborted)
-        ?? throw HubErrors.NotFound();
 
     private async Task<UserSummaryDto> CurrentUserSummaryAsync(Guid userId)
     {
