@@ -1,16 +1,23 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { MAX_MESSAGE_LENGTH } from '@/stores/messages'
 import { errorMessage } from '@/utils/errorMessage'
 
 const props = defineProps<{ send: (text: string) => Promise<void> }>()
+/** Emitted while the user types a non-empty draft. The parent throttles it into a hub call. */
+const emit = defineEmits<{ typing: [] }>()
 
 const draft = ref('')
 const isSending = ref(false)
 const error = ref<string | null>(null)
 
 const canSend = computed(() => draft.value.trim().length > 0 && !isSending.value)
+
+// Watching the draft (not the input event) also covers the reset after a send, which is empty.
+watch(draft, (value) => {
+  if (value.trim().length > 0) emit('typing')
+})
 
 async function submit(): Promise<void> {
   if (!canSend.value) return

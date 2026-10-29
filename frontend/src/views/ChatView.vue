@@ -4,11 +4,17 @@ import { computed, onMounted, watch } from 'vue'
 import MessageComposer from '@/components/MessageComposer.vue'
 import MessageList from '@/components/MessageList.vue'
 import PresenceDot from '@/components/PresenceDot.vue'
+import TypingIndicator from '@/components/TypingIndicator.vue'
+import { getRealtimeService } from '@/realtime'
 import { ROUTE_NAMES } from '@/router/routes'
 import { useAuthStore } from '@/stores/auth'
 import { useMessagesStore } from '@/stores/messages'
 import { usePresenceStore } from '@/stores/presence'
 import { useRoomsStore } from '@/stores/rooms'
+import { useTypingStore } from '@/stores/typing'
+import type { UserId } from '@/api'
+
+const NAME_OF_UNKNOWN_AUTHOR = 'Кто-то'
 
 const props = defineProps<{ id: string }>()
 
@@ -16,10 +22,27 @@ const auth = useAuthStore()
 const rooms = useRoomsStore()
 const messages = useMessagesStore()
 const presence = usePresenceStore()
+const typing = useTypingStore()
+const realtime = getRealtimeService()
 
 const conversation = computed(() => rooms.findConversation(props.id))
 const history = computed(() => messages.historyOf(props.id))
 const isUnknown = computed(() => rooms.status === 'ready' && !conversation.value)
+
+/** Display name for a typing user: the DM peer, or the latest visible author of the room. */
+function nameOf(userId: UserId): string {
+  const current = conversation.value
+  if (current?.kind === 'direct' && current.peer.id === userId) return current.peer.displayName
+  const latest = history.value.items.filter((message) => message.author.id === userId).at(-1)
+  return latest?.author.displayName ?? NAME_OF_UNKNOWN_AUTHOR
+}
+
+const typingText = computed(() => {
+  const names = typing.typingUserIds(props.id).map(nameOf)
+  if (names.length === 0) return ''
+  if (names.length === 1) return `${names[0]} печатает…`
+  return 'Несколько человек печатают…'
+})
 
 const title = computed(() => {
   const current = conversation.value
@@ -35,13 +58,24 @@ const subtitle = computed(() => {
 })
 
 onMounted(() => void rooms.load())
+
+// Joined while the chat is open, left when the route changes or the view unmounts.
+// A refused join (forbidden) is shown by the REST load below, so the error is ignored here.
 watch(
   () => props.id,
-  (id) => void messages.loadLatest(id),
+  (id, _previousId, onCleanup) => {
+    void messages.loadLatest(id)
+    void realtime.openConversation(id).catch(() => undefined)
+    onCleanup(() => void realtime.closeConversation(id))
+  },
   { immediate: true },
 )
 
-const send = (text: string) => messages.send(props.id, text)
+async function send(text: string): Promise<void> {
+  await realtime.sendMessage(props.id, text)
+}
+
+const notifyTyping = () => realtime.notifyTyping(props.id)
 </script>
 
 <template>
@@ -83,7 +117,8 @@ const send = (text: string) => messages.send(props.id, text)
         :current-user-id="auth.user?.id ?? null"
         @load-older="messages.loadOlder(id)"
       />
-      <MessageComposer :send="send" />
+      <TypingIndicator :text="typingText" />
+      <MessageComposer :send="send" @typing="notifyTyping" />
     </template>
   </main>
 </template>

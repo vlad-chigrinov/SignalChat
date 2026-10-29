@@ -2,6 +2,7 @@
 import { RouterView } from 'vue-router'
 
 import AppHeader from '@/components/AppHeader.vue'
+import ConnectionBanner from '@/components/ConnectionBanner.vue'
 import { useSessionBootstrap } from '@/composables/useSessionBootstrap'
 import { useAuthStore } from '@/stores/auth'
 
@@ -11,7 +12,10 @@ useSessionBootstrap()
 
 <template>
   <div class="app">
-    <AppHeader v-if="auth.isAuthenticated" />
+    <template v-if="auth.isAuthenticated">
+      <AppHeader />
+      <ConnectionBanner />
+    </template>
     <RouterView class="page" />
   </div>
 </template>
