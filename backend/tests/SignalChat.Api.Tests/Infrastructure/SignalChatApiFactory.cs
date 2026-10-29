@@ -122,7 +122,9 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
         {
             services.Remove(descriptor);
         }
-        services.AddDbContext<SignalChatDbContext>(options => options.UseSqlite(_database));
+        services.AddDbContext<SignalChatDbContext>(options => options
+            .UseSqlite(_database)
+            .ReplaceService<IModelCustomizer, SqliteDateTimeOffsetModelCustomizer>());
     }
 }
 
