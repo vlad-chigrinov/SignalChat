@@ -9,6 +9,7 @@
     "vitest.config.*",
     "cypress.config.*",
     "playwright.config.*",
+    "playwright.real.config.*",
     "e2e/**/*",
     "eslint.config.*"
   ],

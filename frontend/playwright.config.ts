@@ -10,6 +10,8 @@ const SERVER_START_TIMEOUT_MS = 60_000
  */
 export default defineConfig({
   testDir: './e2e',
+  // e2e/real runs against the real backend with its own config (playwright.real.config.ts).
+  testIgnore: 'real/**',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

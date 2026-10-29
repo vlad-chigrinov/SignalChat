@@ -46,4 +46,5 @@ __screenshots__/
 # Playwright
 test-results/
 playwright-report/
+playwright-report-real/
 blob-report/
