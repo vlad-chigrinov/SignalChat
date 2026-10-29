@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication;
+using SignalChat.Api.Chat.RateLimiting;
 using SignalChat.Infrastructure.Users;
 
 namespace SignalChat.Api.Auth;
@@ -13,7 +14,7 @@ public static class TestLoginEndpoints
 
     public static IEndpointRouteBuilder MapTestLoginEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost(Route, LoginAsync);
+        endpoints.MapPost(Route, LoginAsync).RequireRateLimiting(ChatRateLimitPolicies.TestLogin);
         return endpoints;
     }
 

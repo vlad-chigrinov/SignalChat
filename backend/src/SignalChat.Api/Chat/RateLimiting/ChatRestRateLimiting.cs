@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace SignalChat.Api.Chat.RateLimiting;
 
 /// <summary>
-/// Per-user fixed-window limits on the REST routes the spec limits. The window is one minute. Each policy keeps its
-/// own counters, so exhausting one route does not spend another route's allowance.
+/// Fixed-window limits on the REST routes the spec limits. The window is one minute. Each policy keeps its own
+/// counters, so exhausting one route does not spend another route's allowance.
 /// </summary>
 public static class ChatRestRateLimiting
 {
@@ -21,19 +21,21 @@ public static class ChatRestRateLimiting
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = ChatRateLimitRejection.WriteAsync;
-            AddFixedWindowPolicy(options, ChatRateLimitPolicies.UserSearch, limits.UserSearchPerMinute);
-            AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomDiscover, limits.RoomDiscoverPerMinute);
-            AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomMembership, limits.RoomMembershipPerMinute);
+            AddFixedWindowPolicy(options, ChatRateLimitPolicies.UserSearch, limits.UserSearchPerMinute, ChatRateLimitKey.Of);
+            AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomDiscover, limits.RoomDiscoverPerMinute, ChatRateLimitKey.Of);
+            AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomMembership, limits.RoomMembershipPerMinute, ChatRateLimitKey.Of);
             AddFixedWindowPolicy(
-                options, ChatRateLimitPolicies.DirectConversationCreate, limits.DirectConversationCreatePerMinute);
-            AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomCreate, limits.RoomCreatePerMinute);
+                options, ChatRateLimitPolicies.DirectConversationCreate, limits.DirectConversationCreatePerMinute, ChatRateLimitKey.Of);
+            AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomCreate, limits.RoomCreatePerMinute, ChatRateLimitKey.Of);
+            AddFixedWindowPolicy(options, ChatRateLimitPolicies.TestLogin, limits.TestLoginPerMinute, ChatRateLimitKey.OfAddress);
         });
         return services;
     }
 
-    private static void AddFixedWindowPolicy(RateLimiterOptions options, string policy, int permitsPerMinute) =>
+    private static void AddFixedWindowPolicy(
+        RateLimiterOptions options, string policy, int permitsPerMinute, Func<HttpContext, string> keyOf) =>
         options.AddPolicy(policy, http => RateLimitPartition.GetFixedWindowLimiter(
-            ChatRateLimitKey.Of(http),
+            keyOf(http),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = permitsPerMinute,

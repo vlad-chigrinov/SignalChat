@@ -16,4 +16,15 @@ public sealed class E2eTestAuthStartupTests
         Assert.Contains(E2eTestAuthSettings.FlagKey, error.ToString());
         Assert.Contains("Production", error.ToString());
     }
+
+    [Fact]
+    public void TestAuthInDevelopment_StopsTheApplicationAtStartup()
+    {
+        using var factory = new E2eDevelopmentApiFactory();
+
+        var error = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+
+        Assert.Contains(E2eTestAuthSettings.FlagKey, error.ToString());
+        Assert.Contains("Development", error.ToString());
+    }
 }

@@ -26,6 +26,6 @@ printf '%s\n' \
   | docker compose exec -T db psql -v ON_ERROR_STOP=1 -U "$postgres_user" -d postgres
 
 POSTGRES_DB="$E2E_DATABASE" \
-ASPNETCORE_ENVIRONMENT=Development \
+ASPNETCORE_ENVIRONMENT=E2E \
 E2E_TEST_AUTH=true \
-  dotnet run --project backend/src/SignalChat.Api --launch-profile https
+  dotnet run --project backend/src/SignalChat.Api --launch-profile e2e

@@ -15,7 +15,6 @@ public sealed class E2eTestAuthSettingsTests
     }
 
     [Theory]
-    [InlineData("Development")]
     [InlineData("Testing")]
     [InlineData("E2E")]
     public void Flag_IsAllowed_InTestEnvironments(string environmentName)
@@ -27,6 +26,7 @@ public sealed class E2eTestAuthSettingsTests
     }
 
     [Theory]
+    [InlineData("Development")]
     [InlineData("Production")]
     [InlineData("Staging")]
     public void Flag_IsRefused_OutsideTestEnvironments(string environmentName)

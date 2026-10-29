@@ -30,14 +30,14 @@ Assert-LastExitCode 'Recreating the e2e database'
 # The overrides are restored afterwards: the caller's shell must not keep pointing at the e2e database.
 $overrides = @{
     POSTGRES_DB            = $e2eDatabase
-    ASPNETCORE_ENVIRONMENT = 'Development'
+    ASPNETCORE_ENVIRONMENT = 'E2E'
     E2E_TEST_AUTH          = 'true'
 }
 $previous = @{}
 foreach ($name in $overrides.Keys) { $previous[$name] = [Environment]::GetEnvironmentVariable($name) }
 try {
     foreach ($name in $overrides.Keys) { [Environment]::SetEnvironmentVariable($name, $overrides[$name]) }
-    dotnet run --project backend/src/SignalChat.Api --launch-profile https
+    dotnet run --project backend/src/SignalChat.Api --launch-profile e2e
 }
 finally {
     foreach ($name in $previous.Keys) { [Environment]::SetEnvironmentVariable($name, $previous[$name]) }

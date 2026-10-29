@@ -4,19 +4,22 @@ namespace SignalChat.Api.Configuration;
 /// Loads <c>KEY=VALUE</c> pairs from the repository-root <c>.env</c> into process environment
 /// variables, so <c>dotnet run</c> and docker-compose share one secrets file.
 /// Variables already set in the environment win; a missing file is not an error.
-/// Development only: tests and deployed environments never read a developer's local secrets.
+/// Local runs only (Development and the E2E backend): tests and deployed environments never read a developer's local secrets.
 /// </summary>
 public static class DotEnvLoader
 {
     private const string FileName = ".env";
     private const char CommentPrefix = '#';
     private const char Separator = '=';
+    private const string E2eEnvironment = "E2E";
+
+    private static readonly string[] LocalEnvironments = [Environments.Development, E2eEnvironment];
 
     public static void LoadInDevelopment(string startDirectory)
     {
         var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
             ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
-        if (!string.Equals(environment, Environments.Development, StringComparison.OrdinalIgnoreCase))
+        if (environment is null || !LocalEnvironments.Contains(environment, StringComparer.OrdinalIgnoreCase))
         {
             return;
         }

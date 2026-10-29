@@ -26,6 +26,7 @@ builder.Services.AddChatSignalR();
 builder.Services.AddChatRestRateLimiting(builder.Configuration);
 
 var app = builder.Build();
+e2eTestAuth.WarnIfEnabled(app.Logger);
 
 if (!app.Environment.IsDevelopment())
 {
