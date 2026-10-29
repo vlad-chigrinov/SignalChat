@@ -24,6 +24,7 @@ public sealed class ChatHub(
     IUserDirectory users,
     ChatMessaging messaging,
     ConversationJoin joins,
+    IMembershipChangeRateLimiter membershipLimiter,
     ITypingThrottle typingThrottle) : Hub<IChatClient>
 {
     public const string Route = "/hubs/chat";
@@ -82,6 +83,12 @@ public sealed class ChatHub(
     public async Task JoinRoom(string conversationId)
     {
         var id = ParseConversationId(conversationId);
+        var userId = CurrentUserId();
+        if (!membershipLimiter.TryAcquire(userId))
+        {
+            throw HubErrors.Of(HubErrorCodes.RateLimited);
+        }
+
         var joined = ChatConnectionState.Joined(Context);
         if (joined.ContainsKey(id))
         {
@@ -93,7 +100,6 @@ public sealed class ChatHub(
             throw HubErrors.Of(HubErrorCodes.TooManyGroups);
         }
 
-        var userId = CurrentUserId();
         var conversation = await joins.JoinAsync(
             userId, id, Context.ConnectionId, Groups, joined, Context.ConnectionAborted);
 
@@ -105,6 +111,11 @@ public sealed class ChatHub(
     public async Task LeaveRoom(string conversationId)
     {
         var id = ParseConversationId(conversationId);
+        if (!membershipLimiter.TryAcquire(CurrentUserId()))
+        {
+            throw HubErrors.Of(HubErrorCodes.RateLimited);
+        }
+
         if (!ChatConnectionState.Joined(Context).TryRemove(id, out var conversation))
         {
             return;

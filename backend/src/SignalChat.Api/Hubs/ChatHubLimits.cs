@@ -10,6 +10,11 @@ public static class ChatHubLimits
 
     public static readonly TimeSpan SendRateLimitWindow = TimeSpan.FromSeconds(10);
 
+    /// <summary>JoinRoom and LeaveRoom calls one user may make inside one window, across all of their connections.</summary>
+    public const int MembershipChangePermits = 30;
+
+    public static readonly TimeSpan MembershipChangeWindow = TimeSpan.FromSeconds(10);
+
     /// <summary>Conversations one connection may be joined to at the same time.</summary>
     public const int MaxJoinedConversationsPerConnection = 100;
 

@@ -17,6 +17,7 @@ public static class ChatSignalRRegistration
         services.AddSingleton<IHubConnectionRegistry, HubConnectionRegistry>();
         services.AddSingleton<IPresenceTracker, InMemoryPresenceTracker>();
         services.AddSingleton<IMessageRateLimiter, SlidingWindowMessageRateLimiter>();
+        services.AddSingleton<IMembershipChangeRateLimiter, MembershipChangeRateLimiter>();
         services.AddSingleton<ITypingThrottle, InMemoryTypingThrottle>();
         services.AddSingleton<PresenceNotifier>();
         services.AddScoped<HubGroupMembership>();
