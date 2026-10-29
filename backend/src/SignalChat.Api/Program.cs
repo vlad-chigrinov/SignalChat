@@ -27,6 +27,7 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseHttpsRedirection();
 
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseCors();
 app.UseMiddleware<OriginGuardMiddleware>();
 app.UseAuthentication();

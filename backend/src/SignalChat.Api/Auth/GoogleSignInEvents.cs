@@ -14,6 +14,7 @@ public static class GoogleSignInEvents
     private const string NameClaim = "name";
     private const string PictureClaim = "picture";
     private const string FailedSignInQuery = "?authError=google";
+    private const string LogCategory = "SignalChat.Auth.Google";
 
     public static async Task OnTokenValidatedAsync(TokenValidatedContext context)
     {
@@ -38,10 +39,20 @@ public static class GoogleSignInEvents
         context.Properties!.IsPersistent = true;
     }
 
-    /// <summary>User cancelled consent or the callback was invalid: back to the SPA with a flag, no details.</summary>
+    /// <summary>
+    /// User cancelled consent or the callback was invalid: back to the SPA with a flag, no details.
+    /// The log keeps the exception type and message only: never the query string, code, state or tokens.
+    /// </summary>
     public static Task OnRemoteFailureAsync(RemoteFailureContext context)
     {
-        var frontend = context.HttpContext.RequestServices.GetRequiredService<FrontendSettings>();
+        var services = context.HttpContext.RequestServices;
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger(LogCategory);
+        logger.LogWarning(
+            "Google sign-in failed: {ExceptionType}: {ExceptionMessage}",
+            context.Failure?.GetType().Name ?? "none",
+            context.Failure?.Message ?? "none");
+
+        var frontend = services.GetRequiredService<FrontendSettings>();
         context.Response.Redirect(new Uri(frontend.BaseUrl, "/" + FailedSignInQuery).ToString());
         context.HandleResponse();
         return Task.CompletedTask;

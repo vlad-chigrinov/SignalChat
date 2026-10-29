@@ -25,9 +25,11 @@ ensure_secret() {
 }
 
 if [[ ! -f .env ]]; then
-  cp .env.example .env
+  # umask 077 creates the file already private (0600); the chmod below also fixes an existing file.
+  (umask 077 && cp .env.example .env)
   echo "Created .env from .env.example."
 fi
+chmod 600 .env
 ensure_secret POSTGRES_PASSWORD "$(openssl rand -hex 24)"
 ensure_secret PII_ENCRYPTION_KEY "$(openssl rand -base64 32)"
 

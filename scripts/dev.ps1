@@ -29,6 +29,8 @@ function Set-DotEnvSecretIfMissing([string]$name, [string]$value) {
     Write-Host "Generated $name in .env."
 }
 
+# On Windows the file mode is not POSIX 0600: .env inherits the ACL of the user profile folder,
+# which is already private to the current user. dev.sh sets chmod 600 on macOS / Linux / Git Bash.
 if (-not (Test-Path .env)) { Copy-Item .env.example .env; Write-Host 'Created .env from .env.example.' }
 Set-DotEnvSecretIfMissing 'POSTGRES_PASSWORD' (-join ((New-RandomBytes 24) | ForEach-Object { $_.ToString('x2') }))
 Set-DotEnvSecretIfMissing 'PII_ENCRYPTION_KEY' ([Convert]::ToBase64String((New-RandomBytes 32)))
