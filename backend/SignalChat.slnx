@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SignalChat.Api/SignalChat.Api.csproj" />
+    <Project Path="src/SignalChat.Domain/SignalChat.Domain.csproj" />
+    <Project Path="src/SignalChat.Infrastructure/SignalChat.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SignalChat.Api.Tests/SignalChat.Api.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,2 +1,14 @@
 .env
 .DS_Store
+.mcp.json
+.agentsroom/handoff-transcript-*.txt
+.agentsroom/handoff-summary-*.md
+.agentsroom/fork-context-*.txt
+.agentsroom/transfer-context-*.txt
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
