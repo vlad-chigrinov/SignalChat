@@ -8,7 +8,8 @@ namespace SignalChat.Api.Hubs;
 
 /// <summary>
 /// The send path of the hub. Strict order: membership (not_found) → rate limit (rate_limited) → save to the
-/// database (validation happens inside) → broadcast to the group. Nothing is broadcast before it is stored.
+/// database (text validation happens inside, its <see cref="ChatRuleException"/> becomes a hub error code) →
+/// broadcast to the group. Nothing is broadcast before it is stored.
 /// </summary>
 public sealed class ChatMessaging(
     IConversationAccess access,
@@ -26,7 +27,16 @@ public sealed class ChatMessaging(
             throw HubErrors.Of(HubErrorCodes.RateLimited);
         }
 
-        var stored = await messages.AppendAsync(userId, conversationId, text, cancellationToken);
+        MessageView stored;
+        try
+        {
+            stored = await messages.AppendAsync(userId, conversationId, text, cancellationToken);
+        }
+        catch (ChatRuleException rule)
+        {
+            throw HubErrors.From(rule);
+        }
+
         var message = ChatMapping.ToDto(stored);
         await hub.Clients.Group(ChatGroups.For(conversation)).MessageReceived(message);
         return message;

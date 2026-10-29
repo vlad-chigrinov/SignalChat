@@ -11,7 +11,6 @@ public static class ChatSignalRRegistration
             options.MaximumReceiveMessageSize = ChatHubLimits.MaxReceiveMessageSizeBytes;
             options.EnableDetailedErrors = false;
         });
-        services.AddSingleton<IHubFilter, HubErrorFilter>();
 
         // Scale-out extension point: a Redis backplane (AddStackExchangeRedis) belongs here, behind config. Not enabled.
 
