@@ -45,6 +45,8 @@ backend/
 
 - Configuration: the API reads the repository-root `.env` (same `POSTGRES_*`
   variables as docker-compose). Real environment variables win. Never commit `.env`.
+- `AllowedHosts` (host allowlist, `;`-separated): the base config allows only `localhost`,
+  Development adds `127.0.0.1`. In production set the `AllowedHosts` environment variable to the API host.
 - Migrations are applied on startup in Development. To add one:
   `cd backend && dotnet tool restore && dotnet ef migrations add <Name> --project src/SignalChat.Infrastructure --startup-project src/SignalChat.Api --output-dir Persistence/Migrations`
 - Tests: `cd backend && dotnet test` (SQLite in memory and a fake Google: no Docker, no keys needed)
