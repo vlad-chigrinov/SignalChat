@@ -2,6 +2,7 @@
 .DS_Store
 .mcp.json
 .claude/
+.worktrees/
 .agentsroom/handoff-transcript-*.txt
 .agentsroom/handoff-summary-*.md
 .agentsroom/fork-context-*.txt
