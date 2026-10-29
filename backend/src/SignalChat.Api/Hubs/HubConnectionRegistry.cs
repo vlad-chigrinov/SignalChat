@@ -41,6 +41,16 @@ public sealed class HubConnectionRegistry : IHubConnectionRegistry
         }
     }
 
+    public IReadOnlyCollection<string> ConnectionIds(string userId)
+    {
+        lock (_gate)
+        {
+            return _connectionsByUser.TryGetValue(userId, out var connections)
+                ? connections.Keys.ToArray()
+                : [];
+        }
+    }
+
     public void AbortAll(string userId)
     {
         HubCallerContext[] victims;

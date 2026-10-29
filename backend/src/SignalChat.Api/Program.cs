@@ -18,8 +18,7 @@ builder.Services.AddSessionAuthentication(builder.Configuration);
 builder.Services.AddFrontendCors(frontend);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ChatRuleExceptionHandler>();
-builder.Services.AddSingleton<IHubConnectionRegistry, HubConnectionRegistry>();
-builder.Services.AddSignalR();
+builder.Services.AddChatSignalR();
 
 var app = builder.Build();
 

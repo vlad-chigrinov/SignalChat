@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using SignalChat.Api.Auth;
 using SignalChat.Api.Chat.Dto;
+using SignalChat.Api.Hubs;
+using SignalChat.Domain.Chat;
 using SignalChat.Infrastructure.Chat;
 
 namespace SignalChat.Api.Chat;
@@ -67,7 +69,7 @@ public static class RoomEndpoints
     }
 
     private static async Task<IResult> LeaveAsync(
-        ClaimsPrincipal user, Guid id, IRoomService rooms, CancellationToken cancellationToken)
+        ClaimsPrincipal user, Guid id, IRoomService rooms, HubGroupMembership hubGroups, CancellationToken cancellationToken)
     {
         if (!SessionPrincipal.TryGetUserId(user, out var userId))
         {
@@ -75,6 +77,8 @@ public static class RoomEndpoints
         }
 
         await rooms.LeaveAsync(userId, id, cancellationToken);
+        // A former member must stop receiving the room's live messages right away, not after a reconnect.
+        await hubGroups.RemoveUserAsync(userId, new ConversationRef(ConversationKind.Room, id));
         return Results.NoContent();
     }
 }

@@ -14,4 +14,7 @@ public interface IHubConnectionRegistry
 
     /// <summary>Aborts every live connection of the user. Connections opened afterwards are not affected.</summary>
     void AbortAll(string userId);
+
+    /// <summary>Connection ids currently open for the user; empty when none.</summary>
+    IReadOnlyCollection<string> ConnectionIds(string userId);
 }

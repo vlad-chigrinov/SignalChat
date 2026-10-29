@@ -14,6 +14,7 @@ public static class ChatEndpoints
         api.MapDirectConversationEndpoints();
         api.MapMessageEndpoints();
         api.MapUserSearchEndpoints();
+        api.MapPresenceEndpoints();
         return endpoints;
     }
 }

@@ -8,6 +8,12 @@ public sealed class UserDirectory(SignalChatDbContext dbContext) : IUserDirector
 {
     public const int MinQueryLength = 2;
 
+    public Task<ChatUser?> FindPublicAsync(Guid userId, CancellationToken cancellationToken) =>
+        dbContext.Users.AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => new ChatUser(user.Id, user.DisplayName, user.AvatarUrl))
+            .SingleOrDefaultAsync(cancellationToken);
+
     public async Task<IReadOnlyList<ChatUser>> SearchAsync(Guid userId, string? query, int limit, CancellationToken cancellationToken)
     {
         var term = (query ?? string.Empty).Trim().ToLowerInvariant();
