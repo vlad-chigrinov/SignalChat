@@ -57,13 +57,15 @@ public sealed class MessageHistoryTests
         var (alice, aliceCookie) = await factory.CreateSessionAsync(Profile("dm-hist-alice"));
         var (bob, bobCookie) = await factory.CreateSessionAsync(Profile("dm-hist-bob"));
         using var client = factory.CreateApiClient();
-        var created = await ChatHttp.ReadJsonAsync(await client.SendAsync(ChatHttp.Post("/api/direct-conversations", aliceCookie, new { userId = bob.Id })));
+        var created = await ChatHttp.ReadJsonAsync(await client.SendAsync(ChatHttp.Post("/api/direct-conversations", aliceCookie, new { userId = bob.Id, text = "hi" })));
         var conversationId = created.GetProperty("id").GetGuid();
+        await client.SendAsync(ChatHttp.Post($"/api/direct-conversations/{conversationId}/accept", bobCookie));
         await AppendSequenceAsync(factory, alice.Id, conversationId, 3);
 
         var fromBob = await ReadPageAsync(client, bobCookie, conversationId, "?limit=10");
 
-        Assert.Equal(new[] { "m1", "m2", "m3" }, fromBob.Texts);
+        // The request text is the first message of the conversation.
+        Assert.Equal(new[] { "hi", "m1", "m2", "m3" }, fromBob.Texts);
     }
 
     [Fact]

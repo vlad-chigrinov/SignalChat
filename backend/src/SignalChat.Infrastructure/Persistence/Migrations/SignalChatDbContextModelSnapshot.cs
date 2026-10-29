@@ -30,6 +30,16 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("InitiatorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("UserHighId")
                         .HasColumnType("uuid");
 
@@ -39,6 +49,8 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserHighId");
+
+                    b.HasIndex("InitiatorId", "Status");
 
                     b.HasIndex("UserLowId", "UserHighId")
                         .IsUnique();

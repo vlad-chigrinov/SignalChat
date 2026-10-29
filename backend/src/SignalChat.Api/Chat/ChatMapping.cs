@@ -1,4 +1,5 @@
 using SignalChat.Api.Chat.Dto;
+using SignalChat.Domain.Chat;
 using SignalChat.Infrastructure.Chat;
 
 namespace SignalChat.Api.Chat;
@@ -15,7 +16,15 @@ public static class ChatMapping
         new(room.Id, room.Name, room.Description, room.MemberCount, ToDto(room.LastMessage));
 
     public static DirectConversationDto ToDto(DirectConversationSummary conversation) =>
-        new(conversation.Id, ToDto(conversation.Peer), ToDto(conversation.LastMessage));
+        new(conversation.Id, ToDto(conversation.Peer), ToDto(conversation.LastMessage), ToStatusName(conversation.Status));
+
+    public static DirectRequestDto ToDto(IncomingDirectRequestView request) =>
+        new(request.Id, ToDto(request.From), request.Text, request.CreatedAt);
+
+    private static string ToStatusName(DirectConversationStatus status) =>
+        status == DirectConversationStatus.Accepted
+            ? DirectConversationStatusNames.Accepted
+            : DirectConversationStatusNames.Pending;
 
     public static MessageDto ToDto(MessageView message) =>
         new(message.Id, message.ConversationId, ToDto(message.Author), message.Text, message.SentAt);

@@ -21,6 +21,7 @@ public static class ChatSignalRRegistration
         services.AddSingleton<ITypingThrottle, InMemoryTypingThrottle>();
         services.AddSingleton<PresenceNotifier>();
         services.AddSingleton<PresenceAnnouncer>();
+        services.AddSingleton<DirectRequestNotifier>();
         services.AddScoped<HubGroupMembership>();
         services.AddScoped<HubSessionGuard>();
         services.AddScoped<ChatMessaging>();

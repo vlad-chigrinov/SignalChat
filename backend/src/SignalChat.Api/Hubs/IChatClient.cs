@@ -14,4 +14,8 @@ public interface IChatClient
     Task UserTyping(UserTypingEventDto typingEvent);
 
     Task PresenceChanged(PresenceChangedDto presenceEvent);
+
+    Task DirectRequestReceived(DirectRequestReceivedDto request);
+
+    Task DirectRequestAccepted(DirectRequestAcceptedDto accepted);
 }

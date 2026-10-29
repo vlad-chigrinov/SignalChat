@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SignalChat.Domain.Chat;
 using SignalChat.Infrastructure.Persistence;
 
 namespace SignalChat.Infrastructure.Chat;
@@ -15,10 +16,13 @@ public sealed class PeerDirectory(SignalChatDbContext dbContext) : IPeerDirector
             .Where(member => member.UserId != userId && myRoomIds.Contains(member.RoomId))
             .Select(member => member.UserId);
 
-        var directPeers = dbContext.DirectConversations
+        // Only accepted conversations share presence: a pending request must not reveal that the caller is online.
+        var acceptedDirect = dbContext.DirectConversations
+            .Where(conversation => conversation.Status == DirectConversationStatus.Accepted);
+        var directPeers = acceptedDirect
             .Where(conversation => conversation.UserLowId == userId)
             .Select(conversation => conversation.UserHighId)
-            .Union(dbContext.DirectConversations
+            .Union(acceptedDirect
                 .Where(conversation => conversation.UserHighId == userId)
                 .Select(conversation => conversation.UserLowId));
 

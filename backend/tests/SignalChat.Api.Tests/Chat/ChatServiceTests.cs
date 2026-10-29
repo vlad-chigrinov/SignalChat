@@ -51,7 +51,7 @@ public sealed class ChatServiceTests(SignalChatApiFactory factory) : IClassFixtu
         var roomId = await CreateRoomAsync(alice.Id);
         using var scope = factory.Services.CreateScope();
         var direct = scope.ServiceProvider.GetRequiredService<IDirectConversationService>();
-        var conversation = await direct.GetOrCreateAsync(alice.Id, bob.Id, CancellationToken.None);
+        var conversation = await AcceptedDirectAsync(direct, alice.Id, bob.Id);
         var access = scope.ServiceProvider.GetRequiredService<IConversationAccess>();
 
         var roomForOwner = await access.FindForMemberAsync(alice.Id, roomId, CancellationToken.None);
@@ -79,7 +79,7 @@ public sealed class ChatServiceTests(SignalChatApiFactory factory) : IClassFixtu
         var rooms = scope.ServiceProvider.GetRequiredService<IRoomService>();
         await rooms.JoinAsync(roommate.Id, roomId, CancellationToken.None);
         var direct = scope.ServiceProvider.GetRequiredService<IDirectConversationService>();
-        await direct.GetOrCreateAsync(alice.Id, dmPeer.Id, CancellationToken.None);
+        await AcceptedDirectAsync(direct, alice.Id, dmPeer.Id);
         var peers = scope.ServiceProvider.GetRequiredService<IPeerDirectory>();
 
         var alicePeers = await peers.GetPeerIdsAsync(alice.Id, CancellationToken.None);
@@ -88,6 +88,15 @@ public sealed class ChatServiceTests(SignalChatApiFactory factory) : IClassFixtu
         Assert.Contains(dmPeer.Id, alicePeers);
         Assert.DoesNotContain(stranger.Id, alicePeers);
         Assert.DoesNotContain(alice.Id, alicePeers);
+    }
+
+    /// <summary>A direct conversation that is already a chat: requested by <paramref name="initiatorId"/> and accepted by the peer.</summary>
+    private static async Task<DirectConversationSummary> AcceptedDirectAsync(
+        IDirectConversationService direct, Guid initiatorId, Guid peerId)
+    {
+        var outcome = await direct.RequestAsync(initiatorId, peerId, "hello", CancellationToken.None);
+        await direct.AcceptAsync(peerId, outcome.Conversation.Id, CancellationToken.None);
+        return outcome.Conversation;
     }
 
     private async Task<Guid> CreateRoomAsync(Guid ownerId)

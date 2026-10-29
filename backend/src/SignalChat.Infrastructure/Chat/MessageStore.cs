@@ -11,7 +11,8 @@ public sealed class MessageStore(
 {
     public async Task<MessageView> AppendAsync(Guid userId, Guid conversationId, string? text, CancellationToken cancellationToken)
     {
-        var conversation = await access.FindForMemberAsync(userId, conversationId, cancellationToken)
+        // Writing needs an active conversation: a pending request accepts no messages from its initiator.
+        var conversation = await access.FindActiveAsync(userId, conversationId, cancellationToken)
             ?? throw new ChatRuleException("not_found", "Conversation not found.");
 
         var now = timeProvider.GetUtcNow();

@@ -10,3 +10,9 @@ public sealed record UserTypingEventDto(Guid ConversationId, Guid UserId);
 
 /// <summary>A user with a shared conversation went online or offline.</summary>
 public sealed record PresenceChangedDto(Guid UserId, bool IsOnline);
+
+/// <summary>A direct request reached its recipient. Sent to the recipient's user group, once, when the request is created.</summary>
+public sealed record DirectRequestReceivedDto(Guid ConversationId, UserSummaryDto From, string Text, DateTimeOffset CreatedAt);
+
+/// <summary>The peer accepted the request. Sent to the initiator's user group; the initiator then calls JoinRoom for the conversation.</summary>
+public sealed record DirectRequestAcceptedDto(Guid ConversationId, UserSummaryDto Peer);

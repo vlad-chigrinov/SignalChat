@@ -54,8 +54,8 @@ public sealed class ChatDomainTests
         var alice = Guid.NewGuid();
         var bob = Guid.NewGuid();
 
-        var forward = DirectConversation.Between(alice, bob, Now);
-        var backward = DirectConversation.Between(bob, alice, Now);
+        var forward = DirectConversation.Request(alice, bob, Now);
+        var backward = DirectConversation.Request(bob, alice, Now);
 
         Assert.Equal(forward.UserLowId, backward.UserLowId);
         Assert.Equal(forward.UserHighId, backward.UserHighId);
@@ -67,7 +67,7 @@ public sealed class ChatDomainTests
     {
         var self = Guid.NewGuid();
 
-        var error = Assert.Throws<ChatRuleException>(() => DirectConversation.Between(self, self, Now));
+        var error = Assert.Throws<ChatRuleException>(() => DirectConversation.Request(self, self, Now));
 
         Assert.Equal("self_conversation", error.Code);
     }
@@ -77,7 +77,7 @@ public sealed class ChatDomainTests
     {
         var alice = Guid.NewGuid();
         var bob = Guid.NewGuid();
-        var conversation = DirectConversation.Between(alice, bob, Now);
+        var conversation = DirectConversation.Request(alice, bob, Now);
 
         Assert.Equal(bob, conversation.PeerOf(alice));
         Assert.Equal(alice, conversation.PeerOf(bob));

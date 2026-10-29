@@ -50,9 +50,14 @@ public sealed class ChatRestRateLimitTests
         var (peer, _) = await factory.CreateSessionAsync(HubFixtures.Profile("rl-direct-peer"));
         using var client = factory.CreateApiClient();
 
-        await AssertLimitedAfterPermitsAsync(
-            HttpStatusCode.OK,
-            () => client.SendAsync(ChatHttp.Post("/api/direct-conversations", cookie, new { userId = peer.Id })));
+        // The first request is created, the repeat is answered with dm_request_pending: both count, the third is refused.
+        using var created = await client.SendAsync(ChatHttp.Post("/api/direct-conversations", cookie, new { userId = peer.Id, text = "hi" }));
+        using var repeated = await client.SendAsync(ChatHttp.Post("/api/direct-conversations", cookie, new { userId = peer.Id, text = "hi" }));
+        using var limited = await client.SendAsync(ChatHttp.Post("/api/direct-conversations", cookie, new { userId = peer.Id, text = "hi" }));
+
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, repeated.StatusCode);
+        await AssertRefusedAsRateLimitedAsync(limited);
     }
 
     [Fact]

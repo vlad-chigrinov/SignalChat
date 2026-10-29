@@ -7,16 +7,25 @@ namespace SignalChat.Api.Tests.Chat;
 public sealed class DirectAndSearchRestTests(SignalChatApiFactory factory) : IClassFixture<SignalChatApiFactory>
 {
     [Fact]
-    public async Task DirectConversation_IsSymmetric_AndIdempotent()
+    public async Task DirectConversation_IsARequestUntilAccepted_ThenSymmetricAndIdempotent()
     {
         var (alice, aliceCookie) = await factory.CreateSessionAsync(Profile("dm-alice"));
         var (bob, bobCookie) = await factory.CreateSessionAsync(Profile("dm-bob"));
         using var client = factory.CreateApiClient();
 
-        var fromAlice = await ChatHttp.ReadJsonAsync(await client.SendAsync(ChatHttp.Post("/api/direct-conversations", aliceCookie, new { userId = bob.Id })));
-        var fromBob = await ChatHttp.ReadJsonAsync(await client.SendAsync(ChatHttp.Post("/api/direct-conversations", bobCookie, new { userId = alice.Id })));
+        using var requested = await client.SendAsync(ChatHttp.Post("/api/direct-conversations", aliceCookie, new { userId = bob.Id, text = "hi" }));
+        var waiting = await ChatHttp.ReadJsonAsync(requested);
+        using var incomingForBob = await client.SendAsync(ChatHttp.Post("/api/direct-conversations", bobCookie, new { userId = alice.Id, text = "hi" }));
+        using var accepted = await client.SendAsync(ChatHttp.Post($"/api/direct-conversations/{waiting.GetProperty("id").GetGuid()}/accept", bobCookie));
+        var fromAlice = await ChatHttp.ReadJsonAsync(await client.SendAsync(ChatHttp.Post("/api/direct-conversations", aliceCookie, new { userId = bob.Id, text = "again" })));
+        var fromBob = await ChatHttp.ReadJsonAsync(await client.SendAsync(ChatHttp.Post("/api/direct-conversations", bobCookie, new { userId = alice.Id, text = "again" })));
 
+        Assert.Equal(HttpStatusCode.Created, requested.StatusCode);
+        Assert.Equal("pending", waiting.GetProperty("status").GetString());
+        Assert.Equal("dm_incoming_request_exists", (await ChatHttp.ReadJsonAsync(incomingForBob)).GetProperty("code").GetString());
+        Assert.Equal(HttpStatusCode.NoContent, accepted.StatusCode);
         Assert.Equal("direct", fromAlice.GetProperty("kind").GetString());
+        Assert.Equal("accepted", fromAlice.GetProperty("status").GetString());
         Assert.Equal(fromAlice.GetProperty("id").GetGuid(), fromBob.GetProperty("id").GetGuid());
         Assert.Equal(bob.Id, fromAlice.GetProperty("peer").GetProperty("id").GetGuid());
         Assert.Equal(alice.Id, fromBob.GetProperty("peer").GetProperty("id").GetGuid());
@@ -52,7 +61,7 @@ public sealed class DirectAndSearchRestTests(SignalChatApiFactory factory) : ICl
         var (bob, _) = await factory.CreateSessionAsync(Profile("dm-list-bob"));
         var (_, strangerCookie) = await factory.CreateSessionAsync(Profile("dm-list-stranger"));
         using var client = factory.CreateApiClient();
-        var created = await ChatHttp.ReadJsonAsync(await client.SendAsync(ChatHttp.Post("/api/direct-conversations", aliceCookie, new { userId = bob.Id })));
+        var created = await ChatHttp.ReadJsonAsync(await client.SendAsync(ChatHttp.Post("/api/direct-conversations", aliceCookie, new { userId = bob.Id, text = "hi" })));
         var conversationId = created.GetProperty("id").GetGuid();
 
         var aliceList = await ChatHttp.ReadJsonAsync(await client.SendAsync(ChatHttp.Get("/api/direct-conversations", aliceCookie)));

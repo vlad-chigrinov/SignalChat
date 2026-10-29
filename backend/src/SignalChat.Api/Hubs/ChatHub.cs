@@ -153,7 +153,7 @@ public sealed class ChatHub(
             return;
         }
 
-        var conversation = await access.FindForMemberAsync(userId, id, Context.ConnectionAborted)
+        var conversation = await access.FindActiveAsync(userId, id, Context.ConnectionAborted)
             ?? throw HubErrors.NotFound();
         await Clients.OthersInGroup(ChatGroups.For(conversation)).UserTyping(new UserTypingEventDto(id, userId));
     }

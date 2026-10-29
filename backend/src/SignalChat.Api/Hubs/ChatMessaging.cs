@@ -25,8 +25,8 @@ public sealed class ChatMessaging(
             throw HubErrors.Of(HubErrorCodes.RateLimited);
         }
 
-        var conversation = await access.FindForMemberAsync(userId, conversationId, cancellationToken)
-            ?? throw HubErrors.NotFound();
+        var conversation = await access.FindActiveAsync(userId, conversationId, cancellationToken)
+            ?? throw await NotActiveAsync(userId, conversationId, cancellationToken);
 
         MessageView stored;
         try
@@ -42,4 +42,13 @@ public sealed class ChatMessaging(
         await hub.Clients.Group(ChatGroups.For(conversation)).MessageReceived(message);
         return message;
     }
+
+    /// <summary>
+    /// The initiator of a pending request can see it but not write to it: "dm_not_accepted". Everyone else who
+    /// is not active gets "not_found", the same answer as for a missing conversation.
+    /// </summary>
+    private async Task<HubException> NotActiveAsync(Guid userId, Guid conversationId, CancellationToken cancellationToken) =>
+        await access.FindForMemberAsync(userId, conversationId, cancellationToken) is not null
+            ? HubErrors.Of(DirectRequestErrorCodes.NotAccepted)
+            : HubErrors.NotFound();
 }

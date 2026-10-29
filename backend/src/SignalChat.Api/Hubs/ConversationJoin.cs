@@ -20,13 +20,13 @@ public sealed class ConversationJoin(IConversationAccess access)
         ConcurrentDictionary<Guid, ConversationRef> joined,
         CancellationToken cancellationToken)
     {
-        var conversation = await access.FindForMemberAsync(userId, conversationId, cancellationToken)
+        var conversation = await access.FindActiveAsync(userId, conversationId, cancellationToken)
             ?? throw HubErrors.NotFound();
         var group = ChatGroups.For(conversation);
         await groups.AddToGroupAsync(connectionId, group, cancellationToken);
         joined[conversationId] = conversation;
 
-        if (await access.FindForMemberAsync(userId, conversationId, cancellationToken) is not null)
+        if (await access.FindActiveAsync(userId, conversationId, cancellationToken) is not null)
         {
             return conversation;
         }

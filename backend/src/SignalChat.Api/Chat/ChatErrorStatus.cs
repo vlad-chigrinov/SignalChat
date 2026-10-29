@@ -1,3 +1,5 @@
+using SignalChat.Domain.Chat;
+
 namespace SignalChat.Api.Chat;
 
 /// <summary>HTTP status of each stable chat error code.</summary>
@@ -11,6 +13,10 @@ public static class ChatErrorStatus
     {
         "not_found" => NotFound,
         "room_name_taken" or "room_limit_reached" or "owner_cannot_leave" => Conflict,
+        DirectRequestErrorCodes.RequestPending
+            or DirectRequestErrorCodes.IncomingRequestExists
+            or DirectRequestErrorCodes.RequestLimitReached
+            or DirectRequestErrorCodes.NotAccepted => Conflict,
         _ => BadRequest,
     };
 }

@@ -69,7 +69,13 @@ public sealed class ConversationJoinTests
     {
         private int _next;
 
-        public Task<ConversationRef?> FindForMemberAsync(Guid userId, Guid conversationId, CancellationToken cancellationToken)
+        public Task<ConversationRef?> FindForMemberAsync(Guid userId, Guid conversationId, CancellationToken cancellationToken) =>
+            NextAnswer();
+
+        public Task<ConversationRef?> FindActiveAsync(Guid userId, Guid conversationId, CancellationToken cancellationToken) =>
+            NextAnswer();
+
+        private Task<ConversationRef?> NextAnswer()
         {
             var answer = answers[Math.Min(_next, answers.Length - 1)];
             _next++;
