@@ -4,13 +4,17 @@ import { computed, ref, watch } from 'vue'
 import { MAX_MESSAGE_LENGTH } from '@/stores/messages'
 import { errorMessage } from '@/utils/errorMessage'
 
+const DEFAULT_UNAVAILABLE_REASON = 'Нет соединения. Отправка недоступна.'
+
 const props = withDefaults(
   defineProps<{
     send: (text: string) => Promise<void>
-    /** True while the realtime connection is down: the draft is kept, sending is blocked. */
+    /** True while the realtime connection is down or the chat is not accepted yet: sending is blocked. */
     unavailable?: boolean
+    /** What the user reads while sending is blocked. */
+    unavailableReason?: string
   }>(),
-  { unavailable: false },
+  { unavailable: false, unavailableReason: DEFAULT_UNAVAILABLE_REASON },
 )
 /** Emitted while the user types a non-empty draft. The parent throttles it into a hub call. */
 const emit = defineEmits<{ typing: [] }>()
@@ -64,7 +68,7 @@ function onKeydown(event: KeyboardEvent): void {
       @keydown="onKeydown"
     ></textarea>
     <button type="submit" class="button" :disabled="!canSend">Отправить</button>
-    <p v-if="unavailable" class="status" role="status">Нет соединения. Отправка недоступна.</p>
+    <p v-if="unavailable" class="status" role="status">{{ unavailableReason }}</p>
     <p v-else-if="error" class="error" role="alert">{{ error }}</p>
   </form>
 </template>

@@ -58,12 +58,22 @@ const title = computed(() => {
   return current.kind === 'room' ? `# ${current.name}` : current.peer.displayName
 })
 
+/** A request this user wrote that the peer has not answered: read-only until it is accepted. */
+const isAwaitingAnswer = computed(
+  () => conversation.value?.kind === 'direct' && conversation.value.status === 'pending',
+)
+
 const subtitle = computed(() => {
   const current = conversation.value
   if (!current) return ''
   if (current.kind === 'room') return `${current.description} · участников: ${current.memberCount}`
+  if (current.status === 'pending') return 'Ожидает ответа'
   return presence.isOnline(current.peer.id) ? 'в сети' : 'не в сети'
 })
+
+const composerBlockedReason = computed(() =>
+  isAwaitingAnswer.value ? 'Ожидает ответа собеседника.' : 'Нет соединения. Отправка недоступна.',
+)
 
 onMounted(() => void rooms.load())
 
@@ -134,7 +144,12 @@ const notifyTyping = () => realtime.notifyTyping(props.id)
         @load-older="messages.loadOlder(id)"
       />
       <TypingIndicator :text="typingText" />
-      <MessageComposer :send="send" :unavailable="isSendingUnavailable" @typing="notifyTyping" />
+      <MessageComposer
+        :send="send"
+        :unavailable="isSendingUnavailable || isAwaitingAnswer"
+        :unavailable-reason="composerBlockedReason"
+        @typing="notifyTyping"
+      />
     </template>
   </main>
 </template>

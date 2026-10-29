@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import ConversationListItem from '@/components/ConversationListItem.vue'
 import CreateRoomDialog from '@/components/CreateRoomDialog.vue'
+import IncomingRequests from '@/components/IncomingRequests.vue'
 import UserSearchDialog from '@/components/UserSearchDialog.vue'
 import type { ConversationId, DirectConversation, Room } from '@/api'
 import { ROUTE_NAMES } from '@/router/routes'
@@ -52,6 +53,8 @@ function openDirect(direct: DirectConversation): void {
           Создать комнату
         </button>
       </div>
+
+      <IncomingRequests @accepted="openConversation" />
 
       <section aria-labelledby="rooms-title">
         <h2 id="rooms-title">Комнаты</h2>
