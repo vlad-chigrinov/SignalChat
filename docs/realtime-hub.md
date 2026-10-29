@@ -9,6 +9,7 @@ Contract for the frontend. The server is the source of truth; if this file and t
 - Auth: the session cookie set by `/auth/login`. The handshake's `Origin` must be on the allowlist; a foreign `Origin` is refused at connect (403). A request without `Origin` is a non-browser client and is accepted.
 - Client: `withUrl('/hubs/chat')`, `withAutomaticReconnect()`.
 - A connection is refused when the session is revoked (logout, or the user's sessions were revoked elsewhere). The server aborts the live connections on logout, so the client sees `closed` and must return to the login screen.
+- A user may hold at most 5 open connections. The sixth is refused at connect: the server aborts that new connection (the client sees `closed`) and the open ones stay.
 
 ## Id space and access
 
@@ -67,7 +68,8 @@ There is no "stopped typing" event. The client hides the typing hint after its o
 ## Presence
 
 - Presence is scoped. A user sees and receives presence only for users who share a room or a direct conversation with them.
-- A user is online while at least one connection is open. Several tabs produce one `PresenceChanged(true)` on the first connection and one `PresenceChanged(false)` after the last.
+- A user is online while at least one connection is open. Several tabs produce one `PresenceChanged(true)` on the first connection.
+- `PresenceChanged(false)` is sent only after the last connection has been closed for 5 s (the offline grace). A reconnect inside that window produces no event at all. The snapshot counts a user inside the grace window as online.
 - Snapshot: `GET /api/presence/online` returns `UserId[]`, only the online peers that share a conversation with the caller. Use it after load or reconnect.
 
 ## Groups (server side only)
@@ -84,7 +86,7 @@ Hub errors reach the client as `HubException`. Because SignalR does not expose d
 |---|---|
 | `not_found` | The conversation does not exist, or the caller is not a member, or the id is malformed. |
 | `invalid_message` | Empty after trimming, or longer than 2000 characters. |
-| `rate_limited` | More than 20 messages inside a 10-second sliding window. |
+| `rate_limited` | More than 20 messages inside a 10-second sliding window, or more than 30 `JoinRoom`/`LeaveRoom` calls inside 10 s. Over REST the same code comes with HTTP 429 and a `Retry-After` header. |
 | `too_many_groups` | More than 100 conversations joined on one connection. |
 | `unauthenticated` | No valid user identity on the connection. |
 
@@ -94,9 +96,26 @@ Hub errors reach the client as `HubException`. Because SignalR does not expose d
 |---|---|
 | Message text | 2000 characters (`Message.MaxTextLength`) |
 | Send rate | 20 messages per 10 s sliding window, per user |
+| `JoinRoom` + `LeaveRoom` rate | 30 calls per 10 s, per user, shared by all of the user's connections |
 | Joined conversations per connection | 100 |
 | Typing signal | at most one per 2 s per user and conversation |
+| Open connections per user | 5. The sixth is refused at connect; the open ones stay |
+| Offline grace (presence) | 5 s after the last connection closes |
 | Maximum incoming message size | 32 KB |
+
+### REST rate limits
+
+Per user, fixed window of one minute. The key is the session user; an anonymous request is counted by client IP. Past the limit the answer is `429 Too Many Requests` with a `Retry-After` header (whole seconds) and ProblemDetails whose `code` is `rate_limited`. Each row keeps its own counter.
+
+| Route | Limit per minute | Option |
+|---|---|---|
+| `GET /api/users/search` | 30 | `UserSearchPerMinute` |
+| `GET /api/rooms/discover` | 30 | `RoomDiscoverPerMinute` |
+| `POST /api/rooms/{id}/join` and `/leave` | 30, shared | `RoomMembershipPerMinute` |
+| `POST /api/direct-conversations` | 10 | `DirectConversationCreatePerMinute` |
+| `POST /api/rooms` | 10 | `RoomCreatePerMinute` |
+
+The numbers above are defaults. Override them under `Chat:RateLimits` in configuration (for example `Chat:RateLimits:RoomCreatePerMinute`).
 
 ## Reconnect rules (client)
 
