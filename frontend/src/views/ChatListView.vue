@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import ConversationListItem from '@/components/ConversationListItem.vue'
+import CreateRoomDialog from '@/components/CreateRoomDialog.vue'
+import type { Room } from '@/api'
+import { ROUTE_NAMES } from '@/router/routes'
 import { useRoomsStore } from '@/stores/rooms'
 
 const rooms = useRoomsStore()
+const router = useRouter()
+const isCreateRoomOpen = ref(false)
 
 onMounted(() => void rooms.load())
+
+function openRoom(room: Room): void {
+  isCreateRoomOpen.value = false
+  void router.push({ name: ROUTE_NAMES.chat, params: { id: room.id } })
+}
 </script>
 
 <template>
@@ -19,6 +30,12 @@ onMounted(() => void rooms.load())
     </div>
 
     <template v-else>
+      <div class="toolbar">
+        <button type="button" class="button" @click="isCreateRoomOpen = true">
+          Создать комнату
+        </button>
+      </div>
+
       <section aria-labelledby="rooms-title">
         <h2 id="rooms-title">Комнаты</h2>
         <p v-if="rooms.sortedRooms.length === 0" class="empty">Вы пока не состоите в комнатах.</p>
@@ -39,6 +56,12 @@ onMounted(() => void rooms.load())
         </ul>
       </section>
     </template>
+
+    <CreateRoomDialog
+      v-if="isCreateRoomOpen"
+      @close="isCreateRoomOpen = false"
+      @created="openRoom"
+    />
   </main>
 </template>
 
@@ -48,6 +71,13 @@ onMounted(() => void rooms.load())
   margin: 0 auto;
   padding: 16px;
   overflow-y: auto;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 0 12px;
 }
 
 h2 {
