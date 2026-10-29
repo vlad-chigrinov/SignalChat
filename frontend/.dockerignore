@@ -1,0 +1,11 @@
+# Not needed to build the image, and some of it must never reach a build context.
+# e2e/ stays in: the type-check of playwright.real.config.ts imports it. Only dist/ is copied to the image.
+node_modules
+dist
+test-results
+playwright-report
+playwright-report-real
+blob-report
+.env*
+.eslintcache
+*.log
