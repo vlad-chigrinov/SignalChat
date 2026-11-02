@@ -5,6 +5,16 @@ function relativePath(path) {
   return path.replaceAll('\\', '/').replace(/^.*\/frontend\//, '')
 }
 
+/**
+ * The report has no total time. The files run in parallel, so adding up their times would overstate it; the run lasts
+ * from its start to the end of the file that finished last.
+ */
+function runDurationMs(report) {
+  const ends = report.testResults.map((file) => file.endTime).filter(Number.isFinite)
+  if (!Number.isFinite(report.startTime) || ends.length === 0) return null
+  return Math.round(Math.max(...ends) - report.startTime)
+}
+
 /** Reads the JSON that `vitest run --reporter=json` writes. */
 export function parseVitest(report) {
   const failures = []
@@ -33,8 +43,7 @@ export function parseVitest(report) {
     failed: report.numFailedTests + loadErrors,
     skipped: report.numPendingTests + report.numTodoTests,
     flaky: 0,
-    // The report has no total time: per-file times overlap, so adding them up would mislead.
-    durationMs: null,
+    durationMs: runDurationMs(report),
     failures,
   }
 }

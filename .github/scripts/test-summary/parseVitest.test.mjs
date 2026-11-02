@@ -9,10 +9,13 @@ const REPORT = {
   numFailedTests: 1,
   numPendingTests: 1,
   numTodoTests: 0,
+  startTime: 1_000_000,
   testResults: [
     {
       name: 'C:/work/signalchat/frontend/src/a.spec.ts',
       status: 'failed',
+      startTime: 1_000_200,
+      endTime: 1_002_500.7,
       assertionResults: [
         { fullName: 'a works', status: 'passed', failureMessages: [] },
         { fullName: 'a breaks', status: 'failed', failureMessages: ['AssertionError: expected 1 to be 2\n    at a.spec.ts:5'] },
@@ -22,10 +25,22 @@ const REPORT = {
       name: 'C:/work/signalchat/frontend/src/b.spec.ts',
       status: 'failed',
       message: 'Failed to resolve import "./missing"',
+      startTime: 1_000_300,
+      endTime: 1_001_100,
       assertionResults: [],
     },
   ],
 }
+
+test('measures the run from its start to the end of the last file, as the files run in parallel', () => {
+  assert.equal(parseVitest(REPORT).durationMs, 2_501)
+})
+
+test('has no duration when the report carries no times', () => {
+  const { startTime, ...withoutStart } = REPORT
+
+  assert.equal(parseVitest(withoutStart).durationMs, null)
+})
 
 test('takes the counts from the report', () => {
   const result = parseVitest(REPORT)
@@ -34,7 +49,6 @@ test('takes the counts from the report', () => {
   assert.equal(result.passed, 1)
   assert.equal(result.failed, 2)
   assert.equal(result.skipped, 1)
-  assert.equal(result.durationMs, null)
 })
 
 test('lists a failed test with the file it is in', () => {
