@@ -19,3 +19,6 @@ TestResults/
 
 # IDE
 .idea/
+
+# CI test results (see .github/workflows/images.yml)
+ci-results/

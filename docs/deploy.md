@@ -21,7 +21,11 @@ PostgreSQL is one shared server: `chat-db.vlados.tech`, login and password, TLS 
 
 1. Push to `main` or `stage`.
 2. `.github/workflows/images.yml` runs the tests, then builds `signalchat-api` and `signalchat-web` and pushes them to
-   `ghcr.io/<owner>/` with the branch name as the tag (and the commit sha as a second tag, for rollbacks).
+   `ghcr.io/<owner>/` with the branch name as the tag (and the commit sha as a second tag, for rollbacks). Any failed
+   test stops the build. The tests are backend (xUnit), frontend (Vitest, with lint and types) and e2e (Playwright on the
+   mock API); all three always run, and the run page shows one "Test report" with a row per kind and the failed tests
+   folded under it. The raw results and the Playwright report (with traces) are in the `test-results` artifact, kept for
+   7 days.
 3. Watchtower on the server (poll every 2 minutes) sees the new `:main` or `:stage` image, pulls it and recreates the
    container. The API applies new database migrations on start.
 

@@ -21,27 +21,65 @@ env:
   API_ORIGIN_STAGE: https://chat-api-stage.vlados.tech
 
 jobs:
+  # Three kinds of tests: backend (xUnit), frontend (Vitest), e2e (Playwright on the mock API). Each one runs even when
+  # an earlier one failed, and the run page gets one report with a row per kind (.github/scripts/test-summary).
   test:
     runs-on: ubuntu-latest
+    env:
+      RESULTS_DIR: ${{ github.workspace }}/ci-results
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - name: Backend tests
-        run: dotnet test backend/SignalChat.slnx
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Frontend checks
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Backend tests
+        run: dotnet test backend/SignalChat.slnx --logger "trx;LogFileName=backend.trx" --results-directory "$RESULTS_DIR/backend"
+      - name: Frontend lint and types
+        if: ${{ !cancelled() }}
         working-directory: frontend
         run: |
-          npm ci
           npm run lint:ci
           npm run type-check
-          npm run test:unit
+      - name: Frontend unit tests
+        if: ${{ !cancelled() }}
+        working-directory: frontend
+        run: npx vitest run --reporter=default --reporter=json --outputFile.json="$RESULTS_DIR/frontend.json"
+      - name: Install the e2e browser
+        if: ${{ !cancelled() }}
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: E2E tests
+        if: ${{ !cancelled() }}
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/ci-results/e2e.json
+          PLAYWRIGHT_HTML_OPEN: never
+        run: npx playwright test --reporter=list,json,html
+      - name: Test report script checks
+        if: ${{ !cancelled() }}
+        run: node --test ".github/scripts/test-summary/*.test.mjs"
+      - name: Test report
+        if: ${{ !cancelled() }}
+        run: node .github/scripts/test-summary/index.mjs "$RESULTS_DIR"
+      # Raw results, and the Playwright report with traces of failed e2e tests, to open from the run page.
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results
+          path: |
+            ci-results
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+          if-no-files-found: ignore
 
   images:
     needs: test
