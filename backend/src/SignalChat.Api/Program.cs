@@ -7,6 +7,7 @@ using SignalChat.Api.Hubs;
 using SignalChat.Api.Security;
 using SignalChat.Infrastructure;
 using SignalChat.Infrastructure.Persistence;
+using SignalChat.Infrastructure.Persistence.Seed;
 
 DotEnvLoader.LoadInDevelopment(Directory.GetCurrentDirectory());
 
@@ -14,6 +15,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 var e2eTestAuth = E2eTestAuthSettings.FromConfiguration(builder.Configuration);
 e2eTestAuth.EnsureAllowedIn(builder.Environment.EnvironmentName);
+var demoData = DemoDataSettings.FromConfiguration(builder.Configuration);
+demoData.EnsureAllowedIn(builder.Environment.EnvironmentName);
 
 var isProduction = builder.Environment.IsProduction();
 builder.WebHost.ConfigureKestrel(KestrelHardening.Apply);
@@ -29,6 +32,10 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ChatRuleExceptionHandler>();
 builder.Services.AddChatSignalR();
 builder.Services.AddChatRestRateLimiting(builder.Configuration);
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddStageSwagger();
+}
 
 var app = builder.Build();
 e2eTestAuth.WarnIfEnabled(app.Logger);
@@ -47,6 +54,10 @@ app.UseHttpsRedirection();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseCors();
 app.UseMiddleware<OriginGuardMiddleware>();
+if (app.Environment.IsDevelopment())
+{
+    app.UseStageSwagger();
+}
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
@@ -63,6 +74,11 @@ app.MapChatEndpoints();
 if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 {
     await app.Services.MigrateDatabaseAsync();
+}
+
+if (demoData.Enabled)
+{
+    await app.Services.SeedDemoDataAsync();
 }
 
 app.Run();

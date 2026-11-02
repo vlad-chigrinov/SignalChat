@@ -1,6 +1,7 @@
 import * as signalR from '@microsoft/signalr'
 
 import type { ConversationId, Message } from '@/api'
+import { apiUrl } from '@/api/apiConfig'
 
 import { HubCallError, type ChatHub, type Unsubscribe } from './chatHub'
 import {
@@ -26,7 +27,8 @@ export class SignalrChatHub implements ChatHub {
 
   constructor() {
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(HUB_PATH)
+      // The session cookie rides along (also to the API's own origin when it has one).
+      .withUrl(apiUrl(HUB_PATH), { withCredentials: true })
       .withAutomaticReconnect(reconnectPolicy)
       .configureLogging(signalR.LogLevel.Warning)
       .build()

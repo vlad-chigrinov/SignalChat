@@ -1,0 +1,5 @@
+# Files bind-mounted into Linux containers must keep LF line endings on every checkout.
+deploy/postgres/* text eol=lf
+deploy/*.yml text eol=lf
+deploy/env/* text eol=lf
+*.sh text eol=lf

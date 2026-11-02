@@ -1,5 +1,6 @@
 import { safeReturnPath } from '@/utils/safeReturnPath'
 
+import { apiUrl } from './apiConfig'
 import type { ChatApi } from './contract'
 import { ApiError, requestJson } from './http'
 import { DISCOVER_MAX_LIMIT, HISTORY_MAX_LIMIT, USER_SEARCH_MAX_LIMIT, clampLimit } from './limits'
@@ -20,7 +21,7 @@ const HTTP_UNAUTHORIZED = 401
 
 export function buildLoginUrl(returnPath: string): string {
   const params = new URLSearchParams({ returnUrl: safeReturnPath(returnPath) })
-  return `/auth/login?${params.toString()}`
+  return apiUrl(`/auth/login?${params.toString()}`)
 }
 
 function roomPath(roomId: ConversationId, action: string): string {

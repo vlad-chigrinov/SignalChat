@@ -16,7 +16,7 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:real": "playwright test -c playwright.real.config.ts",
-    "lint:ci": "oxlint . && eslint . && prettier --check src/ e2e/ *.config.ts vite.proxy.ts vite.csp.ts vite.csp.spec.ts"
+    "lint:ci": "oxlint . && eslint . && prettier --check src/ e2e/ *.config.ts vite.proxy.ts vite.csp.ts vite.csp.spec.ts nginx.headers.ts nginx.headers.spec.ts render-nginx-headers.ts"
   },
   "dependencies": {
     "@microsoft/signalr": "^10.0.11",

@@ -16,8 +16,8 @@ public static class PostgresConnectionString
     private const string SslModeKey = "POSTGRES_SSL_MODE";
 
     /// <summary>
-    /// Upper bound of the Npgsql pool. The production database allows 20 connections in total
-    /// (docker-compose.prod.yml), so the pool leaves room for migrations and maintenance.
+    /// Upper bound of the Npgsql pool. One database server allows 30 connections in total and serves both the main and
+    /// the stage environment (deploy/docker-compose.infra.yml), so each pool leaves room for the other and for maintenance.
     /// </summary>
     private const int MaxPoolSize = 10;
 

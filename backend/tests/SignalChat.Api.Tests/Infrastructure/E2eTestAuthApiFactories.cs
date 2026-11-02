@@ -24,6 +24,12 @@ public sealed class E2eDevelopmentApiFactory : SignalChatApiFactory
     protected override string EnvironmentName => "Development";
 }
 
+/// <summary>ASP.NET Core Development without the test sign-in: how the stage environment runs (Swagger on).</summary>
+public sealed class DevelopmentApiFactory : SignalChatApiFactory
+{
+    protected override string EnvironmentName => "Development";
+}
+
 /// <summary>The E2E environment with its own settings file, but without the flag: reads <c>appsettings.E2E.json</c> from the API project.</summary>
 public sealed class E2eEnvironmentApiFactory : SignalChatApiFactory
 {

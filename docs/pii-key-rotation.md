@@ -7,7 +7,7 @@ Status: there is no rotation code yet. This page describes what the current code
 - Only the user's email is encrypted at rest (`UserConfiguration`). Display name and avatar are stored as they are, by a product decision.
 - Algorithm: AES-256-GCM, a random 12-byte nonce per value. Stored form: `v1:` + base64(nonce | ciphertext | tag).
 - The column is never queried or indexed, so no lookup depends on the ciphertext.
-- The key is `PII_ENCRYPTION_KEY`: base64 of exactly 32 random bytes. Generate it once, keep it outside git (see `.env.prod.example`).
+- The key is `PII_ENCRYPTION_KEY`: base64 of exactly 32 random bytes. Generate it once, keep it outside git (see `deploy/env/main.env.example`).
 
 ## What breaks when the key changes
 

@@ -1,3 +1,4 @@
+import { FETCH_CREDENTIALS, apiUrl } from './apiConfig'
 import type { ApiErrorCode } from './types'
 
 const HTTP_NO_CONTENT = 204
@@ -28,8 +29,8 @@ export async function readProblemCode(response: Response): Promise<string | null
 }
 
 /**
- * Same-origin JSON request. The session lives in an HttpOnly cookie set by the
- * backend, so this code never reads or stores a token.
+ * JSON request to the API: same-origin in development, the API's own origin when `VITE_API_ORIGIN` is set.
+ * The session lives in an HttpOnly cookie set by the backend, so this code never reads or stores a token.
  */
 export async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
@@ -38,7 +39,7 @@ export async function requestJson<T>(path: string, init: RequestInit = {}): Prom
   headers.set('X-Requested-With', 'XMLHttpRequest')
   if (init.body !== undefined) headers.set('Content-Type', 'application/json')
 
-  const response = await fetch(path, { ...init, headers, credentials: 'same-origin' })
+  const response = await fetch(apiUrl(path), { ...init, headers, credentials: FETCH_CREDENTIALS })
   if (!response.ok) {
     const method = init.method ?? 'GET'
     const code = await readProblemCode(response)

@@ -1,48 +1,54 @@
 import type { HtmlTagDescriptor, Plugin } from 'vite'
 
+import { webSocketOriginOf } from './src/api/apiOrigin.ts'
+
 /**
  * Content-Security-Policy of the built app. Scripts and styles come only from this origin, so
  * an injected inline script cannot run. No 'unsafe-inline' and no 'unsafe-eval' for scripts.
+ * When the API has an origin of its own, the app may connect to that origin (https and wss) and nowhere else.
  */
-const CSP_DIRECTIVES: Record<string, readonly string[]> = {
-  'default-src': ["'self'"],
-  'script-src': ["'self'"],
-  'style-src': ["'self'"],
-  // Google avatars are the only external images the app shows (see UserAvatar.vue).
-  'img-src': ["'self'", 'https://*.googleusercontent.com'],
-  'font-src': ["'self'"],
-  'connect-src': ["'self'"],
-  'object-src': ["'none'"],
-  'base-uri': ["'none'"],
-  'form-action': ["'self'"],
+function cspDirectives(apiOrigin: string): Record<string, readonly string[]> {
+  const connectSources = apiOrigin === '' ? [] : [apiOrigin, webSocketOriginOf(apiOrigin)]
+  return {
+    'default-src': ["'self'"],
+    'script-src': ["'self'"],
+    'style-src': ["'self'"],
+    // Google avatars are the only external images the app shows (see UserAvatar.vue).
+    'img-src': ["'self'", 'https://*.googleusercontent.com'],
+    'font-src': ["'self'"],
+    'connect-src': ["'self'", ...connectSources],
+    'object-src': ["'none'"],
+    'base-uri': ["'none'"],
+    'form-action': ["'self'"],
+  }
 }
 
 /**
  * `frame-ancestors` is ignored in a <meta> tag: the backend must send it as an HTTP header
  * (`Content-Security-Policy: frame-ancestors 'none'`), together with the other headers.
  */
-export function buildContentSecurityPolicy(directives = CSP_DIRECTIVES): string {
-  return Object.entries(directives)
+export function buildContentSecurityPolicy(apiOrigin = ''): string {
+  return Object.entries(cspDirectives(apiOrigin))
     .map(([name, sources]) => `${name} ${sources.join(' ')}`)
     .join('; ')
 }
 
 /** Only the production build gets this tag: the dev server injects inline scripts for HMR. */
-export function contentSecurityPolicyTag(): HtmlTagDescriptor {
+export function contentSecurityPolicyTag(apiOrigin = ''): HtmlTagDescriptor {
   return {
     tag: 'meta',
     attrs: {
       'http-equiv': 'Content-Security-Policy',
-      content: buildContentSecurityPolicy(),
+      content: buildContentSecurityPolicy(apiOrigin),
     },
     injectTo: 'head-prepend',
   }
 }
 
-export function contentSecurityPolicyPlugin(): Plugin {
+export function contentSecurityPolicyPlugin(apiOrigin = ''): Plugin {
   return {
     name: 'signalchat-content-security-policy',
     apply: 'build',
-    transformIndexHtml: () => [contentSecurityPolicyTag()],
+    transformIndexHtml: () => [contentSecurityPolicyTag(apiOrigin)],
   }
 }

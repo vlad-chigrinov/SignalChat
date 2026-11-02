@@ -1,0 +1,116 @@
+# main environment (production): SPA on chat.vlados.tech, API on chat-api.vlados.tech.
+# Images are built by CI on every push to the main branch and carry the tag "main"; Watchtower pulls them.
+# Needs the shared database from docker-compose.infra.yml to be up.
+#   docker compose --env-file main.env -f docker-compose.main.yml up -d
+# Host memory is tight and shared with other services: every container has a hard limit and no swap.
+
+name: signalchat-main
+
+services:
+  api:
+    image: ${IMAGE_REGISTRY:?set IMAGE_REGISTRY in main.env}/signalchat-api:main
+    container_name: signalchat-main-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Database__MigrateOnStartup: "true"
+      # The shared server, this environment's own database and role (created by the infra stack).
+      POSTGRES_HOST: signalchat-db
+      POSTGRES_PORT: "5432"
+      POSTGRES_SSL_MODE: Require
+      POSTGRES_DB: signalchat_main
+      POSTGRES_USER: signalchat_main
+      POSTGRES_PASSWORD: ${MAIN_DB_PASSWORD:?set MAIN_DB_PASSWORD in main.env}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?set PII_ENCRYPTION_KEY in main.env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID in main.env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?set GOOGLE_CLIENT_SECRET in main.env}
+      # The SPA and the API are different origins: the API lets the SPA's origin in, and sends users back to it.
+      FRONTEND_URL: https://${WEB_HOST:-chat.vlados.tech}
+      CORS_ALLOWED_ORIGINS: https://${WEB_HOST:-chat.vlados.tech}
+      # The API's own host plus localhost: the container health check calls http://localhost:8080/health.
+      AllowedHosts: ${API_HOST:-chat-api.vlados.tech};localhost
+      FORWARDED_TRUSTED_PROXIES: ${FORWARDED_TRUSTED_PROXIES:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      DATA_PROTECTION_KEYS_PATH: /var/lib/signalchat/keys
+      # DOTNET_GC* values are read as HEX: 5000000 = 0x5000000 = 80 MiB.
+      DOTNET_GCHeapHardLimit: "5000000"
+      DOTNET_gcServer: "0"
+      DOTNET_gcConcurrent: "0"
+    volumes:
+      - signalchat-main-keys:/var/lib/signalchat/keys
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.scope=signalchat
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-web}
+      - traefik.http.routers.signalchat-main-api.rule=Host(`${API_HOST:-chat-api.vlados.tech}`)
+      - traefik.http.routers.signalchat-main-api.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.signalchat-main-api.tls=true
+      - traefik.http.routers.signalchat-main-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-le}
+      - traefik.http.services.signalchat-main-api.loadbalancer.server.port=8080
+    networks:
+      - signalchat-data
+      - traefik
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 160m
+    memswap_limit: 160m
+    cpus: 0.6
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  web:
+    image: ${IMAGE_REGISTRY}/signalchat-web:main
+    container_name: signalchat-main-web
+    restart: unless-stopped
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.scope=signalchat
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-web}
+      - traefik.http.routers.signalchat-main-web.rule=Host(`${WEB_HOST:-chat.vlados.tech}`)
+      - traefik.http.routers.signalchat-main-web.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.signalchat-main-web.tls=true
+      - traefik.http.routers.signalchat-main-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-le}
+      - traefik.http.services.signalchat-main-web.loadbalancer.server.port=8080
+      # nginx sets no Strict-Transport-Security; add it for the SPA. No includeSubdomains: the parent domain is shared.
+      - traefik.http.middlewares.signalchat-main-hsts.headers.stsSeconds=31536000
+      - traefik.http.routers.signalchat-main-web.middlewares=signalchat-main-hsts
+    networks:
+      - traefik
+    healthcheck:
+      # 127.0.0.1, not localhost: nginx listens on IPv4 only and BusyBox wget tries ::1 for localhost.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 32m
+    memswap_limit: 32m
+    cpus: 0.1
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+networks:
+  signalchat-data:
+    name: signalchat-data
+    external: true
+  traefik:
+    name: ${TRAEFIK_NETWORK:-web}
+    external: true
+
+volumes:
+  signalchat-main-keys:
+    name: signalchat-main-keys

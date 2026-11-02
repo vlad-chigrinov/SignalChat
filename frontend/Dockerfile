@@ -12,13 +12,18 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Origin of the API when it is not this site's own, e.g. https://chat-api.vlados.tech. The same value goes into
+# the app (where it calls) and into the nginx Content-Security-Policy (where it may connect). One image per environment.
+ARG VITE_API_ORIGIN=
+ENV VITE_API_ORIGIN=${VITE_API_ORIGIN}
 RUN npm run build
+RUN node render-nginx-headers.ts nginx-security-headers.conf /app/security-headers.rendered.conf
 
 # Runtime stage: nginx as a non-root user on port 8080. The unprivileged image is the official nginx
 # build for this: it needs no root to bind a port and no root-owned runtime directory.
 FROM ${NGINX_IMAGE} AS web
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
+COPY --from=build /app/security-headers.rendered.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

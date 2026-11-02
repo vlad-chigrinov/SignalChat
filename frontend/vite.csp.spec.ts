@@ -45,6 +45,29 @@ describe('content security policy', () => {
   })
 })
 
+describe('content security policy with an API on its own origin', () => {
+  const policy = parsePolicy(buildContentSecurityPolicy('https://chat-api.vlados.tech'))
+
+  it('lets the app connect to that origin over https and wss, and nowhere else', () => {
+    expect(policy.get('connect-src')).toEqual([
+      "'self'",
+      'https://chat-api.vlados.tech',
+      'wss://chat-api.vlados.tech',
+    ])
+  })
+
+  it('changes nothing else', () => {
+    const plain = parsePolicy(buildContentSecurityPolicy())
+    for (const name of plain.keys()) {
+      if (name !== 'connect-src') expect(policy.get(name)).toEqual(plain.get(name))
+    }
+  })
+
+  it('is the default policy when the API shares the origin', () => {
+    expect(buildContentSecurityPolicy('')).toBe(buildContentSecurityPolicy())
+  })
+})
+
 describe('content security policy tag', () => {
   it('is a meta tag placed first in the head, with the same policy', () => {
     const tag = contentSecurityPolicyTag()
