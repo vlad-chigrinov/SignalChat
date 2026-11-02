@@ -1,0 +1,130 @@
+# Production stack behind Traefik. Images are built elsewhere and loaded on the server (see scripts/export-images).
+# Run with the server-only env file, never with the dev one:
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+# Every container name, router and network carries the signalchat- prefix so it cannot clash with other services.
+
+name: signalchat
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: signalchat-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.prod}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+    volumes:
+      - signalchat-db-data:/var/lib/postgresql/data
+    # No "ports": PostgreSQL is reachable from the api container only.
+    networks:
+      - signalchat-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+
+  api:
+    image: ${API_IMAGE:?set API_IMAGE in .env.prod, e.g. signalchat-api:<git-sha>}
+    container_name: signalchat-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Database__MigrateOnStartup: "true"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      # The internal network carries no TLS; an external database must use Require instead.
+      POSTGRES_SSL_MODE: Disable
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.prod}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?set PII_ENCRYPTION_KEY in .env.prod}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID in .env.prod}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?set GOOGLE_CLIENT_SECRET in .env.prod}
+      FRONTEND_URL: https://${TRAEFIK_DOMAIN:?set TRAEFIK_DOMAIN in .env.prod}
+      CORS_ALLOWED_ORIGINS: https://${TRAEFIK_DOMAIN}
+      # Public domain plus localhost: the container healthcheck calls http://localhost:8080/health.
+      AllowedHosts: ${TRAEFIK_DOMAIN};localhost
+      FORWARDED_TRUSTED_PROXIES: ${FORWARDED_TRUSTED_PROXIES:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+      DATA_PROTECTION_KEYS_PATH: /var/lib/signalchat/keys
+    volumes:
+      - signalchat-api-keys:/var/lib/signalchat/keys
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:?set TRAEFIK_NETWORK in .env.prod}
+      - traefik.http.routers.signalchat-api.rule=Host(`${TRAEFIK_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/hubs`) || PathPrefix(`/health`))
+      - traefik.http.routers.signalchat-api.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.signalchat-api.tls=true
+      - traefik.http.routers.signalchat-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:?set TRAEFIK_CERTRESOLVER in .env.prod}
+      - traefik.http.services.signalchat-api.loadbalancer.server.port=8080
+    networks:
+      - signalchat-internal
+      - traefik
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  web:
+    image: ${WEB_IMAGE:?set WEB_IMAGE in .env.prod, e.g. signalchat-web:<git-sha>}
+    container_name: signalchat-web
+    restart: unless-stopped
+    # Serves the SPA on 8080 and the root path; Traefik sends everything the api router does not match here.
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK}
+      - traefik.http.routers.signalchat-web.rule=Host(`${TRAEFIK_DOMAIN}`)
+      - traefik.http.routers.signalchat-web.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.signalchat-web.tls=true
+      - traefik.http.routers.signalchat-web.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+      - traefik.http.services.signalchat-web.loadbalancer.server.port=8080
+    networks:
+      - traefik
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 128m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+networks:
+  signalchat-internal:
+    name: signalchat-internal
+    driver: bridge
+    internal: true
+  traefik:
+    name: ${TRAEFIK_NETWORK:?set TRAEFIK_NETWORK in .env.prod}
+    external: true
+
+volumes:
+  signalchat-db-data:
+    name: signalchat-db-data
+  signalchat-api-keys:
+    name: signalchat-api-keys

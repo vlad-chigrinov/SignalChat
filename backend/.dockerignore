@@ -1,0 +1,10 @@
+# Only what the publish step needs goes into the build context.
+**/bin/
+**/obj/
+**/.vs/
+**/.idea/
+**/*.user
+**/TestResults/
+tests/
+Dockerfile
+.dockerignore

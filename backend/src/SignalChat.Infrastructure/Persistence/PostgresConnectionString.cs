@@ -13,8 +13,13 @@ public static class PostgresConnectionString
     private const string ExplicitKey = "Default";
     private const string DefaultHost = "localhost";
     private const int DefaultPort = 5432;
+    private const string SslModeKey = "POSTGRES_SSL_MODE";
 
-    public static string Resolve(IConfiguration configuration)
+    /// <param name="requireTlsByDefault">
+    /// True in Production: TLS is required unless <c>POSTGRES_SSL_MODE</c> says otherwise. The internal Docker
+    /// network sets it to Disable explicitly; an external database keeps Require.
+    /// </param>
+    public static string Resolve(IConfiguration configuration, bool requireTlsByDefault = false)
     {
         var explicitValue = configuration.GetConnectionString(ExplicitKey);
         if (!string.IsNullOrWhiteSpace(explicitValue))
@@ -30,7 +35,26 @@ public static class PostgresConnectionString
             Username = Require(configuration, "POSTGRES_USER"),
             Password = Require(configuration, "POSTGRES_PASSWORD"),
         };
+        ApplySslMode(builder, configuration, requireTlsByDefault);
         return builder.ConnectionString;
+    }
+
+    private static void ApplySslMode(NpgsqlConnectionStringBuilder builder, IConfiguration configuration, bool requireTlsByDefault)
+    {
+        var configured = configuration[SslModeKey];
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            if (requireTlsByDefault)
+            {
+                builder.SslMode = SslMode.Require;
+            }
+            return;
+        }
+
+        builder.SslMode = Enum.TryParse<SslMode>(configured, ignoreCase: true, out var mode)
+            ? mode
+            : throw new InvalidOperationException(
+                $"{SslModeKey} must be one of Disable, Allow, Prefer, Require, VerifyCA or VerifyFull, got '{configured}'.");
     }
 
     private static string Require(IConfiguration configuration, string key) =>
