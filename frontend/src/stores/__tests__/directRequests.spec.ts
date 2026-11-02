@@ -5,6 +5,7 @@ import { api, type DirectConversation, type IncomingDirectRequest } from '@/api'
 import type { DirectRequestReceivedEvent } from '@/realtime/hubContract'
 
 import { useDirectRequestsStore } from '../directRequests'
+import { usePresenceStore } from '../presence'
 import { useRoomsStore } from '../rooms'
 
 const OLGA = { id: 'u-olga', displayName: 'Ольга Ким', avatarUrl: null }
@@ -52,6 +53,19 @@ describe('direct requests store', () => {
     const chat = rooms.findConversation(REQUEST.id) as DirectConversation
     expect(chat).toMatchObject({ kind: 'direct', status: 'accepted', peer: OLGA })
     expect(chat.lastMessage?.text).toBe(REQUEST.text)
+  })
+
+  it('accepting refreshes who is online: the new peer was not in the earlier snapshot', async () => {
+    vi.spyOn(api, 'acceptRequest').mockResolvedValue(undefined)
+    vi.spyOn(api, 'getOnlineUserIds').mockResolvedValue([OLGA.id])
+    const requests = useDirectRequestsStore()
+    const presence = usePresenceStore()
+    requests.incoming = [REQUEST]
+    expect(presence.isOnline(OLGA.id)).toBe(false)
+
+    await requests.accept(REQUEST.id)
+
+    expect(presence.isOnline(OLGA.id)).toBe(true)
   })
 
   it('declining only removes the request from the list', async () => {

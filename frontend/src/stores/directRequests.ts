@@ -9,6 +9,7 @@ import {
 } from '@/api'
 import type { DirectRequestReceivedEvent } from '@/realtime/hubContract'
 
+import { usePresenceStore } from './presence'
 import { useRoomsStore } from './rooms'
 
 /** The chat an accepted request becomes for the user who answered it. The request is its first message. */
@@ -54,6 +55,8 @@ export const useDirectRequestsStore = defineStore('directRequests', () => {
     const rooms = useRoomsStore()
     if (request) rooms.upsertDirect(acceptedChatOf(request))
     else await rooms.load({ force: true })
+    // The sender is a peer only from now on, so the earlier snapshot of who is online does not list them.
+    await usePresenceStore().loadSnapshot()
   }
 
   /** Silent for the writer: the request just leaves this list. */

@@ -16,7 +16,7 @@ export async function createRoom(page: Page, name: string): Promise<void> {
 }
 
 export async function joinRoomFromCatalog(page: Page, name: string): Promise<void> {
-  await page.getByRole('link', { name: 'Найти комнату' }).click()
+  await page.getByRole('button', { name: 'Найти комнату' }).click()
   await page.getByLabel('Название комнаты').fill(name)
   await page.getByRole('button', { name: `Вступить в комнату ${name}` }).click()
   await expect(

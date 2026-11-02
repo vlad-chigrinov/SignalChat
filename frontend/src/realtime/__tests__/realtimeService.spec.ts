@@ -304,6 +304,26 @@ describe('realtime service', () => {
       expect(rooms.findConversation(DM)).toMatchObject({ status: 'accepted' })
       expect(hub.joinedConversations()).toEqual([DM])
     })
+
+    it('refreshes who is online once our request is accepted: the peer is new to us', async () => {
+      await service.connect()
+      useRoomsStore().upsertDirect({
+        kind: 'direct',
+        id: DM,
+        peer: PEER,
+        status: 'pending',
+        lastMessage: null,
+      })
+      vi.spyOn(api, 'getOnlineUserIds').mockResolvedValue([PEER.id])
+      const presence = usePresenceStore()
+      expect(presence.isOnline(PEER.id)).toBe(false)
+
+      hub.emitDirectRequestAccepted({ conversationId: DM, peer: PEER })
+      await flushPromises()
+      await flushPromises()
+
+      expect(presence.isOnline(PEER.id)).toBe(true)
+    })
   })
 
   describe('start retries', () => {

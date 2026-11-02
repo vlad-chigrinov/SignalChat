@@ -47,10 +47,52 @@ test('the create dialog takes focus and closes on Escape', async ({ page }) => {
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
+test('a dialog closes with its close button', async ({ page }) => {
+  await signIn(page)
+
+  await page.getByRole('button', { name: 'Создать комнату' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+
+  await page.getByRole('dialog').getByRole('button', { name: 'Закрыть' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('a dialog closes on a click outside it, but not when a press began inside it', async ({
+  page,
+}) => {
+  await signIn(page)
+
+  await page.getByRole('button', { name: 'Создать комнату' }).click()
+  const title = page.getByRole('heading', { name: 'Новая комната' })
+
+  // Selecting text in a field and letting go over the backdrop must keep the dialog.
+  const box = await title.boundingBox()
+  await page.mouse.move(box!.x + 2, box!.y + 2)
+  await page.mouse.down()
+  await page.mouse.move(2, 2)
+  await page.mouse.up()
+  await expect(page.getByRole('dialog')).toBeVisible()
+
+  await page.mouse.click(2, 2)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
+test('room search is a dialog that closes with its close button', async ({ page }) => {
+  await signIn(page)
+
+  await page.getByRole('button', { name: 'Найти комнату' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Найти комнату' })
+  await expect(dialog).toBeVisible()
+  await expect(page).toHaveURL(/\/$/)
+
+  await dialog.getByRole('button', { name: 'Закрыть' }).click()
+  await expect(dialog).toHaveCount(0)
+})
+
 test('discovers a room, joins it and leaves it again', async ({ page }) => {
   await signIn(page)
 
-  await page.getByRole('link', { name: 'Найти комнату' }).click()
+  await page.getByRole('button', { name: 'Найти комнату' }).click()
   await page.getByLabel('Название комнаты').fill('шах')
   await page.getByRole('button', { name: `Вступить в комнату ${CATALOG_ROOM}` }).click()
 

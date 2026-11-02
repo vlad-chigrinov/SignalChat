@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 
+import BaseDialog from '@/components/BaseDialog.vue'
 import type { Room } from '@/api'
-import { ROUTE_NAMES } from '@/router/routes'
 import { useRoomsStore } from '@/stores/rooms'
 import { errorMessage } from '@/utils/errorMessage'
 import { roomActionFailure } from '@/utils/roomActionError'
@@ -11,8 +10,9 @@ import { roomActionFailure } from '@/utils/roomActionError'
 /** Pause after the last keystroke before the search goes to the server. */
 const SEARCH_DEBOUNCE_MS = 300
 
+const emit = defineEmits<{ close: []; joined: [room: Room] }>()
+
 const rooms = useRoomsStore()
-const router = useRouter()
 const query = ref('')
 const isSearching = ref(false)
 const searchError = ref<string | null>(null)
@@ -45,7 +45,7 @@ async function join(room: Room): Promise<void> {
   joiningRoomId.value = room.id
   try {
     await rooms.joinRoom(room.id)
-    await router.push({ name: ROUTE_NAMES.chat, params: { id: room.id } })
+    emit('joined', room)
   } catch (error) {
     const failure = roomActionFailure(error)
     joinError.value = failure.message
@@ -57,14 +57,7 @@ async function join(room: Room): Promise<void> {
 </script>
 
 <template>
-  <main class="discover">
-    <header class="discover-header">
-      <RouterLink class="back" :to="{ name: ROUTE_NAMES.chatList }" aria-label="К списку чатов">
-        ←
-      </RouterLink>
-      <h1>Найти комнату</h1>
-    </header>
-
+  <BaseDialog title="Найти комнату" @close="emit('close')">
     <label class="field">
       <span>Название комнаты</span>
       <input v-model="query" class="input" type="search" autocomplete="off" />
@@ -95,28 +88,10 @@ async function join(room: Room): Promise<void> {
         </button>
       </li>
     </ul>
-  </main>
+  </BaseDialog>
 </template>
 
 <style scoped>
-.discover {
-  width: min(100%, 720px);
-  margin: 0 auto;
-  padding: 16px;
-}
-
-.discover-header {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-h1 {
-  margin: 0;
-  font-size: 1.2rem;
-}
-
 .field {
   display: grid;
   gap: 6px;
@@ -138,8 +113,13 @@ h1 {
   border-bottom: 1px solid var(--color-border);
 }
 
+.result-text {
+  min-width: 0;
+}
+
 .result-text p {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .result-name {
@@ -153,7 +133,13 @@ h1 {
   font-size: 0.9rem;
 }
 
+.state {
+  margin: 0;
+}
+
 .error {
+  margin: 0 0 12px;
   color: var(--color-danger);
+  font-size: 0.9rem;
 }
 </style>

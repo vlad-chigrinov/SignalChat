@@ -74,10 +74,14 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
     ])
   }
 
-  /** The peer accepted our request: the chat is writable now, and its group is joined. */
+  /**
+   * The peer accepted our request: the chat is writable now, and its group is joined. The peer
+   * shares presence with us only from now on, so who is online is loaded again.
+   */
   async function handleRequestAccepted(conversationId: ConversationId): Promise<void> {
     await rooms.markAccepted(conversationId).catch(() => undefined)
     await openConversation(conversationId).catch(() => undefined)
+    await presence.loadSnapshot()
   }
 
   /**

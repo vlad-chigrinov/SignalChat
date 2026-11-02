@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import ConversationListItem from '@/components/ConversationListItem.vue'
 import CreateRoomDialog from '@/components/CreateRoomDialog.vue'
+import DiscoverRoomsDialog from '@/components/DiscoverRoomsDialog.vue'
 import IncomingRequests from '@/components/IncomingRequests.vue'
 import UserSearchDialog from '@/components/UserSearchDialog.vue'
 import type { ConversationId, DirectConversation, Room } from '@/api'
@@ -12,6 +13,7 @@ import { useRoomsStore } from '@/stores/rooms'
 
 const rooms = useRoomsStore()
 const router = useRouter()
+const isDiscoverOpen = ref(false)
 const isCreateRoomOpen = ref(false)
 const isUserSearchOpen = ref(false)
 
@@ -23,6 +25,11 @@ function openConversation(id: ConversationId): void {
 
 function openRoom(room: Room): void {
   isCreateRoomOpen.value = false
+  openConversation(room.id)
+}
+
+function openJoinedRoom(room: Room): void {
+  isDiscoverOpen.value = false
   openConversation(room.id)
 }
 
@@ -43,9 +50,9 @@ function openDirect(direct: DirectConversation): void {
 
     <template v-else>
       <div class="toolbar">
-        <RouterLink class="button secondary" :to="{ name: ROUTE_NAMES.discoverRooms }">
+        <button type="button" class="button secondary" @click="isDiscoverOpen = true">
           Найти комнату
-        </RouterLink>
+        </button>
         <button type="button" class="button secondary" @click="isUserSearchOpen = true">
           Новое сообщение
         </button>
@@ -77,6 +84,11 @@ function openDirect(direct: DirectConversation): void {
       </section>
     </template>
 
+    <DiscoverRoomsDialog
+      v-if="isDiscoverOpen"
+      @close="isDiscoverOpen = false"
+      @joined="openJoinedRoom"
+    />
     <CreateRoomDialog
       v-if="isCreateRoomOpen"
       @close="isCreateRoomOpen = false"
