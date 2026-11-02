@@ -28,4 +28,13 @@ public static class ChatHubLimits
     public static readonly TimeSpan PresenceOfflineGrace = TimeSpan.FromSeconds(5);
 
     public const int MaxReceiveMessageSizeBytes = 32 * 1024;
+
+    /// <summary>
+    /// How often the server pings an idle connection. Must stay below the Traefik idleTimeout (60 s on the
+    /// production entrypoint), or the proxy closes quiet SignalR connections.
+    /// </summary>
+    public static readonly TimeSpan KeepAliveInterval = TimeSpan.FromSeconds(15);
+
+    /// <summary>How long the server waits for any traffic from a client before dropping it. Must exceed <see cref="KeepAliveInterval"/>.</summary>
+    public static readonly TimeSpan ClientTimeoutInterval = TimeSpan.FromSeconds(30);
 }

@@ -10,6 +10,8 @@ public static class ChatSignalRRegistration
         {
             options.MaximumReceiveMessageSize = ChatHubLimits.MaxReceiveMessageSizeBytes;
             options.EnableDetailedErrors = false;
+            options.KeepAliveInterval = ChatHubLimits.KeepAliveInterval;
+            options.ClientTimeoutInterval = ChatHubLimits.ClientTimeoutInterval;
         });
 
         // Scale-out extension point: a Redis backplane (AddStackExchangeRedis) belongs here, behind config. Not enabled.

@@ -15,6 +15,12 @@ public static class PostgresConnectionString
     private const int DefaultPort = 5432;
     private const string SslModeKey = "POSTGRES_SSL_MODE";
 
+    /// <summary>
+    /// Upper bound of the Npgsql pool. The production database allows 20 connections in total
+    /// (docker-compose.prod.yml), so the pool leaves room for migrations and maintenance.
+    /// </summary>
+    private const int MaxPoolSize = 10;
+
     /// <param name="requireTlsByDefault">
     /// True in Production: TLS is required unless <c>POSTGRES_SSL_MODE</c> says otherwise. The internal Docker
     /// network sets it to Disable explicitly; an external database keeps Require.
@@ -34,6 +40,7 @@ public static class PostgresConnectionString
             Database = Require(configuration, "POSTGRES_DB"),
             Username = Require(configuration, "POSTGRES_USER"),
             Password = Require(configuration, "POSTGRES_PASSWORD"),
+            MaxPoolSize = MaxPoolSize,
         };
         ApplySslMode(builder, configuration, requireTlsByDefault);
         return builder.ConnectionString;

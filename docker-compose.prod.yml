@@ -2,6 +2,7 @@
 # Run with the server-only env file, never with the dev one:
 #   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 # Every container name, router and network carries the signalchat- prefix so it cannot clash with other services.
+# Host memory is tight (957 MiB in total, shared with other services): every container has a hard limit and no swap.
 
 name: signalchat
 
@@ -14,6 +15,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env.prod}
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env.prod}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+    # Sized for a 128 MiB container: small buffers, few connections (the api pool must stay below max_connections).
+    command:
+      - postgres
+      - -c
+      - shared_buffers=32MB
+      - -c
+      - max_connections=20
+      - -c
+      - work_mem=2MB
+      - -c
+      - maintenance_work_mem=16MB
     volumes:
       - signalchat-db-data:/var/lib/postgresql/data
     # No "ports": PostgreSQL is reachable from the api container only.
@@ -24,8 +36,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    mem_limit: 512m
-    cpus: 1.0
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.3
     security_opt:
       - no-new-privileges:true
 
@@ -49,21 +62,29 @@ services:
       PII_ENCRYPTION_KEY: ${PII_ENCRYPTION_KEY:?set PII_ENCRYPTION_KEY in .env.prod}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?set GOOGLE_CLIENT_ID in .env.prod}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?set GOOGLE_CLIENT_SECRET in .env.prod}
-      FRONTEND_URL: https://${TRAEFIK_DOMAIN:?set TRAEFIK_DOMAIN in .env.prod}
-      CORS_ALLOWED_ORIGINS: https://${TRAEFIK_DOMAIN}
+      FRONTEND_URL: https://${TRAEFIK_DOMAIN:-chat.vlados.tech}
+      CORS_ALLOWED_ORIGINS: https://${TRAEFIK_DOMAIN:-chat.vlados.tech}
       # Public domain plus localhost: the container healthcheck calls http://localhost:8080/health.
-      AllowedHosts: ${TRAEFIK_DOMAIN};localhost
+      AllowedHosts: ${TRAEFIK_DOMAIN:-chat.vlados.tech};localhost
       FORWARDED_TRUSTED_PROXIES: ${FORWARDED_TRUSTED_PROXIES:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
       DATA_PROTECTION_KEYS_PATH: /var/lib/signalchat/keys
+      # .NET heap: a 128 MiB hard limit inside the 192 MiB container leaves room for the runtime itself.
+      # DOTNET_GC* values are read as HEX: 8000000 = 0x8000000 = 128 MiB (the decimal 134217728 would mean ~4.9 GiB).
+      # Workstation GC without background threads: one vCPU, and no second set of GC threads competing for it.
+      DOTNET_GCHeapHardLimit: "8000000"
+      DOTNET_gcServer: "0"
+      DOTNET_gcConcurrent: "0"
     volumes:
       - signalchat-api-keys:/var/lib/signalchat/keys
     labels:
       - traefik.enable=true
-      - traefik.docker.network=${TRAEFIK_NETWORK:?set TRAEFIK_NETWORK in .env.prod}
-      - traefik.http.routers.signalchat-api.rule=Host(`${TRAEFIK_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/hubs`) || PathPrefix(`/health`))
+      - traefik.docker.network=${TRAEFIK_NETWORK:-web}
+      - traefik.http.routers.signalchat-api.rule=Host(`${TRAEFIK_DOMAIN:-chat.vlados.tech}`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/hubs`) || PathPrefix(`/health`))
+      # Explicit priority: the api router wins over the web router without depending on rule length.
+      - traefik.http.routers.signalchat-api.priority=100
       - traefik.http.routers.signalchat-api.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
       - traefik.http.routers.signalchat-api.tls=true
-      - traefik.http.routers.signalchat-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:?set TRAEFIK_CERTRESOLVER in .env.prod}
+      - traefik.http.routers.signalchat-api.tls.certresolver=${TRAEFIK_CERTRESOLVER:-le}
       - traefik.http.services.signalchat-api.loadbalancer.server.port=8080
     networks:
       - signalchat-internal
@@ -77,8 +98,9 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    mem_limit: 512m
-    cpus: 1.0
+    mem_limit: 192m
+    memswap_limit: 192m
+    cpus: 0.6
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -91,11 +113,13 @@ services:
     # Serves the SPA on 8080 and the root path; Traefik sends everything the api router does not match here.
     labels:
       - traefik.enable=true
-      - traefik.docker.network=${TRAEFIK_NETWORK}
-      - traefik.http.routers.signalchat-web.rule=Host(`${TRAEFIK_DOMAIN}`)
+      - traefik.docker.network=${TRAEFIK_NETWORK:-web}
+      - traefik.http.routers.signalchat-web.rule=Host(`${TRAEFIK_DOMAIN:-chat.vlados.tech}`)
+      # Lowest priority: the api router above takes its paths first.
+      - traefik.http.routers.signalchat-web.priority=1
       - traefik.http.routers.signalchat-web.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
       - traefik.http.routers.signalchat-web.tls=true
-      - traefik.http.routers.signalchat-web.tls.certresolver=${TRAEFIK_CERTRESOLVER}
+      - traefik.http.routers.signalchat-web.tls.certresolver=${TRAEFIK_CERTRESOLVER:-le}
       - traefik.http.services.signalchat-web.loadbalancer.server.port=8080
       # nginx sets no Strict-Transport-Security, and the api sets it only on its own paths: add it here for the SPA.
       # No includeSubdomains: the parent domain is shared with other services on this server.
@@ -112,8 +136,9 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    mem_limit: 128m
-    cpus: 0.5
+    mem_limit: 24m
+    memswap_limit: 24m
+    cpus: 0.1
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -125,7 +150,7 @@ networks:
     driver: bridge
     internal: true
   traefik:
-    name: ${TRAEFIK_NETWORK:?set TRAEFIK_NETWORK in .env.prod}
+    name: ${TRAEFIK_NETWORK:-web}
     external: true
 
 volumes:
