@@ -97,10 +97,15 @@ services:
       - traefik.http.routers.signalchat-web.tls=true
       - traefik.http.routers.signalchat-web.tls.certresolver=${TRAEFIK_CERTRESOLVER}
       - traefik.http.services.signalchat-web.loadbalancer.server.port=8080
+      # nginx sets no Strict-Transport-Security, and the api sets it only on its own paths: add it here for the SPA.
+      # No includeSubdomains: the parent domain is shared with other services on this server.
+      - traefik.http.middlewares.signalchat-hsts.headers.stsSeconds=31536000
+      - traefik.http.routers.signalchat-web.middlewares=signalchat-hsts
     networks:
       - traefik
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/"]
+      # 127.0.0.1, not localhost: nginx listens on IPv4 only and BusyBox wget tries ::1 for localhost.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
       interval: 15s
       timeout: 5s
       retries: 3

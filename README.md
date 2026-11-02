@@ -102,6 +102,13 @@ In production, register `https://<your-api-host>/auth/callback/google` the same 
 - Email is encrypted in the database (AES-256-GCM, `PII_ENCRYPTION_KEY`). Display name and avatar
   are the public chat profile and are stored as is.
 
+## Deploy
+
+Production runs in Docker behind Traefik at `https://chat.vlados.tech`. The images are built on a workstation
+(`scripts/build-images.*`, `scripts/export-images.*`) and loaded on the server; nothing is built there.
+Steps, checks and rollback: [docs/deploy.md](docs/deploy.md). Server env template: `.env.prod.example`.
+Changing `PII_ENCRYPTION_KEY` locks every user out: [docs/pii-key-rotation.md](docs/pii-key-rotation.md).
+
 ## Working on it
 
 This project was started from AgentsRoom. The architecture decisions and the
