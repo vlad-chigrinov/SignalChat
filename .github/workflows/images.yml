@@ -52,10 +52,11 @@ jobs:
         if: ${{ !cancelled() }}
         working-directory: frontend
         run: npx vitest run --reporter=default --reporter=json --outputFile.json="$RESULTS_DIR/frontend.json"
+      # Only the headless shell: the e2e run is headless and never starts the full Chrome, which is another download.
       - name: Install the e2e browser
         if: ${{ !cancelled() }}
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps --only-shell chromium
       - name: E2E tests
         if: ${{ !cancelled() }}
         working-directory: frontend
