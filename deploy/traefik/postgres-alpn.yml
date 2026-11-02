@@ -1,0 +1,13 @@
+# Optional: lets psql / libpq 17 and newer connect to the database through Traefik.
+# Those clients offer only the TLS ALPN protocol "postgresql", which Traefik's default TLS options do not accept
+# ("tls: client requested unsupported application protocols"). Older libpq, JDBC (DBeaver), Npgsql and most other
+# clients send no ALPN and work without this file.
+#
+# Put this file in the directory of Traefik's file provider (providers.file.directory, watched, no restart needed), then
+# set DB_TLS_OPTIONS=postgres-alpn@file in infra.env and run `up -d` on the infra stack.
+tls:
+  options:
+    postgres-alpn:
+      minVersion: VersionTLS12
+      alpnProtocols:
+        - postgresql

@@ -22,8 +22,8 @@ services:
       # The shared server, this environment's own database and role (created by the infra stack).
       POSTGRES_HOST: signalchat-db
       POSTGRES_PORT: "5432"
-      # Outside Production TLS is not required by default, so it is required here explicitly.
-      POSTGRES_SSL_MODE: Require
+      # The database is on the internal Docker network and has no TLS of its own (Traefik gives it to outside clients).
+      POSTGRES_SSL_MODE: Disable
       POSTGRES_DB: signalchat_stage
       POSTGRES_USER: signalchat_stage
       POSTGRES_PASSWORD: ${STAGE_DB_PASSWORD:?set STAGE_DB_PASSWORD in stage.env}

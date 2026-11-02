@@ -14,7 +14,8 @@ Images are built by GitHub Actions and pulled by Watchtower. Nothing is built on
 | Demo data | no | yes (seed at startup) |
 | Database | `signalchat_main` | `signalchat_stage` |
 
-PostgreSQL is one shared server: `chat-db.vlados.tech`, port 5432 (open), login and password, TLS required.
+PostgreSQL is one shared server: `chat-db.vlados.tech`, login and password, TLS required. Traefik terminates the TLS
+(its Let's Encrypt certificate, like the web hosts); the database container itself is not published on the host.
 
 ## How a change reaches the server
 
@@ -32,10 +33,11 @@ The address goes into the app and into its Content-Security-Policy.
 
 ```
 deploy/
-  docker-compose.infra.yml    PostgreSQL (shared, TLS) and Watchtower
+  docker-compose.infra.yml    PostgreSQL (shared, TLS through Traefik) and Watchtower
   docker-compose.main.yml     main: api + web
   docker-compose.stage.yml    stage: api (Development, Swagger, seed) + web
   postgres/                   pg_hba.conf, first-start script that creates the two databases and roles
+  traefik/postgres-alpn.yml   optional Traefik TLS option for psql 17+ (see "The database")
   env/*.env.example           templates for infra.env, main.env, stage.env (the real files are git-ignored)
 ```
 
@@ -61,9 +63,26 @@ Add both redirect URIs to the OAuth client (one client can serve both environmen
 ### 3. DNS
 
 `A` records for `chat`, `chat-api`, `chat-stage`, `chat-api-stage` and `chat-db` (`.vlados.tech`) point at the server.
-Traefik issues certificates for the first four. `chat-db` is not routed by Traefik: it is the raw database port.
+Traefik issues certificates for all five.
 
-### 4. The server
+### 4. Traefik: a TCP entrypoint for the database
+
+The web hosts use the existing `websecure` entrypoint. The database needs one more, a TCP entrypoint on the public database
+port, in Traefik's static configuration (then restart Traefik once):
+
+```yaml
+entryPoints:
+  postgres:
+    address: ":5432"
+```
+
+(or `--entrypoints.postgres.address=:5432`). Open that port in the server's firewall. If Traefik already publishes it,
+nothing else is needed; the name `postgres` is the default of `TRAEFIK_DB_ENTRYPOINT`. The database joins Traefik's Docker
+network (`TRAEFIK_NETWORK`, default `web`); the compose file declares the router in labels, nothing is added to Traefik's
+dynamic configuration. Traefik v3 (tested with 3.6) speaks the PostgreSQL TLS upgrade itself, so the client only has to
+use `sslmode=require` or stronger.
+
+### 5. The server
 
 ```sh
 cd /opt/signalchat/deploy
@@ -77,7 +96,8 @@ chmod 600 *.env
 Fill in the three files (every secret: `openssl rand -base64 36`):
 
 - `infra.env`: `POSTGRES_PASSWORD`, `MAIN_DB_PASSWORD`, `STAGE_DB_PASSWORD`, `REGISTRY_CONFIG_FILE` (absolute path to
-  the `config.json` from `docker login`), `POSTGRES_PUBLIC_PORT` if 5432 is taken.
+  the `config.json` from `docker login`), and the Traefik network, entrypoint and resolver names if they differ from
+  the defaults (`web`, `postgres`, `le`).
 - `main.env`: `IMAGE_REGISTRY=ghcr.io/<owner>` (lower case), the same `MAIN_DB_PASSWORD`, `PII_ENCRYPTION_KEY`
   (`openssl rand -base64 32`), the Google client id and secret, and the Traefik network, entrypoint and resolver names.
 - `stage.env`: the same, with `STAGE_DB_PASSWORD` and **a different** `PII_ENCRYPTION_KEY`.
@@ -85,7 +105,7 @@ Fill in the three files (every secret: `openssl rand -base64 36`):
 Back up both `PII_ENCRYPTION_KEY` values in a password manager before the first start. Losing or changing a key makes the
 stored emails of that environment unreadable, see [pii-key-rotation.md](pii-key-rotation.md).
 
-### 5. Start
+### 6. Start
 
 Infrastructure first (the database must exist), then the environments:
 
@@ -113,7 +133,7 @@ chat partners. `main` starts empty.
 
 ## The database
 
-Connect with any client (DBeaver, psql) using TLS:
+Connect with any client (DBeaver, psql) using TLS. The port is the one of Traefik's database entrypoint:
 
 ```sh
 psql "host=chat-db.vlados.tech port=5432 dbname=signalchat_stage user=signalchat_stage sslmode=require"
@@ -121,10 +141,19 @@ psql "host=chat-db.vlados.tech port=5432 dbname=signalchat_stage user=signalchat
 
 - Two logins only: `signalchat_main` (database `signalchat_main`) and `signalchat_stage` (database `signalchat_stage`).
   Each reaches its own database and nothing else.
-- Connections without TLS, with a wrong password, to another database, or as the superuser are refused
-  (`deploy/postgres/pg_hba.conf`). The superuser works only inside the container: `docker exec -it signalchat-db psql -U postgres`.
-- The certificate is self-signed (`sslmode=require` encrypts but does not verify the server). To verify, replace
-  `server.crt` and `server.key` in the `signalchat-db-certs` volume with a certificate for `chat-db.vlados.tech`.
+- TLS is Traefik's: a public Let's Encrypt certificate for `chat-db.vlados.tech`, so `sslmode=verify-full` works too. A
+  connection without TLS gets no answer (it matches no router). Traefik talks to the database over the internal Docker
+  network, so inside PostgreSQL the session is not marked as SSL; that is expected.
+- With a wrong password, to another database, or as the superuser the connection is refused (`deploy/postgres/pg_hba.conf`).
+  The superuser works only inside the container: `docker exec -it signalchat-db psql -U postgres`.
+- The API containers do not go through Traefik: they reach `signalchat-db` on the internal `signalchat-data` network and
+  run with `POSTGRES_SSL_MODE=Disable`. Any other container on Traefik's network can also reach the database port, but
+  still needs the password.
+- **psql / libpq 17 and newer** offer only the TLS ALPN protocol `postgresql`, which Traefik rejects by default
+  (`tls: client requested unsupported application protocols`). DBeaver/JDBC, Npgsql and libpq up to 16 are not affected.
+  To allow the new clients, copy `deploy/traefik/postgres-alpn.yml` into the directory of Traefik's file provider, set
+  `DB_TLS_OPTIONS=postgres-alpn@file` in `infra.env` and run `up -d` on the infra stack. (TLS options cannot be set in
+  Docker labels, hence the file. Do not set the name before the file is loaded: the router would stop working.)
 - The roles are created once, on the first start of an empty volume. To change a password later:
   `ALTER ROLE signalchat_main PASSWORD '...'`, then update `main.env` and recreate the API container.
 - The port is open to the internet: use long random passwords, read the log (`docker logs signalchat-db`, every login is

@@ -7,40 +7,10 @@
 name: signalchat-infra
 
 services:
-  # One-shot: creates a self-signed TLS certificate for the database on first start and hands it to the postgres user.
-  # Clients connect with sslmode=require (encrypted); to verify the server, replace server.crt/server.key in the volume.
-  db-certs:
-    image: alpine/openssl:3.5.4
-    container_name: signalchat-db-certs
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -eu
-        if [ ! -s /certs/server.key ]; then
-          openssl req -new -x509 -days 3650 -nodes -newkey rsa:3072 \
-            -subj "/CN=$${DB_PUBLIC_HOST}" \
-            -addext "subjectAltName=DNS:$${DB_PUBLIC_HOST},DNS:signalchat-db" \
-            -keyout /certs/server.key -out /certs/server.crt
-        fi
-        chown 70:70 /certs/server.key /certs/server.crt
-        chmod 600 /certs/server.key
-        chmod 644 /certs/server.crt
-    environment:
-      DB_PUBLIC_HOST: ${DB_PUBLIC_HOST:-chat-db.vlados.tech}
-    volumes:
-      - signalchat-db-certs:/certs
-    restart: "no"
-    mem_limit: 32m
-    security_opt:
-      - no-new-privileges:true
-
   db:
     image: postgres:17-alpine
     container_name: signalchat-db
     restart: unless-stopped
-    depends_on:
-      db-certs:
-        condition: service_completed_successfully
     environment:
       # The superuser can log in from inside the container only (see pg_hba.conf), never over the network.
       POSTGRES_USER: postgres
@@ -55,16 +25,8 @@ services:
       - -c
       - listen_addresses=*
       - -c
-      - ssl=on
-      - -c
-      - ssl_cert_file=/certs/server.crt
-      - -c
-      - ssl_key_file=/certs/server.key
-      - -c
-      - ssl_min_protocol_version=TLSv1.2
-      - -c
       - password_encryption=scram-sha-256
-      # Failed and successful logins are logged: the port is open to the internet, so watch the log.
+      # Failed and successful logins are logged: the database is reachable from the internet through Traefik.
       - -c
       - log_connections=on
       - -c
@@ -78,16 +40,28 @@ services:
       - work_mem=2MB
       - -c
       - maintenance_work_mem=16MB
-    ports:
-      # The one deliberately public port. Change POSTGRES_PUBLIC_PORT when 5432 is taken by another service.
-      - "${POSTGRES_PUBLIC_PORT:-5432}:5432"
+    # No "ports": the database is not published on the host. Outside clients come in through Traefik (labels below),
+    # the API containers of both environments through the signalchat-data network.
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-web}
+      # TLS for the database is Traefik's: it terminates it with the same Let's Encrypt resolver as the web hosts and
+      # routes by SNI, so the client must use sslmode=require (or stronger). A connection without TLS matches no router.
+      - traefik.tcp.routers.signalchat-db.rule=HostSNI(`${DB_PUBLIC_HOST:-chat-db.vlados.tech}`)
+      - traefik.tcp.routers.signalchat-db.entrypoints=${TRAEFIK_DB_ENTRYPOINT:-postgres}
+      - traefik.tcp.routers.signalchat-db.tls=true
+      - traefik.tcp.routers.signalchat-db.tls.certresolver=${TRAEFIK_CERTRESOLVER:-le}
+      # TLS options can be defined only in Traefik's file provider, so the name is a setting. "default" always exists.
+      # psql/libpq 17+ need an option that offers the ALPN protocol "postgresql" (traefik/postgres-alpn.yml).
+      - traefik.tcp.routers.signalchat-db.tls.options=${DB_TLS_OPTIONS:-default}
+      - traefik.tcp.services.signalchat-db.loadbalancer.server.port=5432
     volumes:
       - signalchat-db-data:/var/lib/postgresql/data
-      - signalchat-db-certs:/certs:ro
       - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
       - ./postgres/10-create-databases.sh:/docker-entrypoint-initdb.d/10-create-databases.sh:ro
     networks:
       - signalchat-data
+      - traefik
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -135,9 +109,11 @@ networks:
   signalchat-data:
     name: signalchat-data
     driver: bridge
+  # The existing Traefik network: Traefik reaches the database through it.
+  traefik:
+    name: ${TRAEFIK_NETWORK:-web}
+    external: true
 
 volumes:
   signalchat-db-data:
     name: signalchat-db-data
-  signalchat-db-certs:
-    name: signalchat-db-certs
