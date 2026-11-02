@@ -20,6 +20,13 @@ internal static class DirectRequestFixtures
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
 
+    /// <summary>Makes the two users chat partners: the first writes a request and the second accepts it.</summary>
+    public static async Task BefriendAsync(HttpClient client, string cookie, string peerCookie, Guid peerId)
+    {
+        var conversationId = await RequestAsync(client, cookie, peerId, "Let's talk");
+        await AcceptAsync(client, peerCookie, conversationId);
+    }
+
     public static async Task DeclineAsync(HttpClient client, string cookie, Guid conversationId)
     {
         var response = await client.SendAsync(ChatHttp.Post($"/api/direct-conversations/{conversationId}/decline", cookie));
