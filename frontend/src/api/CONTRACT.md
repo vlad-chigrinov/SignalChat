@@ -61,6 +61,23 @@ Rooms and direct conversations share one id space: `/chat/:id` accepts either.
 | ------ | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GET    | `/api/users/search?query=&limit=` | 200 `UserSummary[]` (`id`, `displayName`, `avatarUrl`). `query` ≥ 2 characters, else 400 `query_too_short`. The caller is never in the result. `limit` ≤ 20. **No email.** |
 
+## Profile (the caller edits only themselves)
+
+No route takes a user id: the user is the one in the session, so nobody can change another person's profile.
+All answer 200 with the updated `CurrentUser` (`id`, `displayName`, `avatarUrl`, `email`).
+
+| Method | Path                    | Answer                                                                                                                                                                                                                                                              |
+| ------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PUT    | `/api/me/display-name`  | Body `{ displayName }`. Trimmed; 1..100 characters, no control characters, line separators or bidirectional overrides, else 400 `invalid_display_name`. A chosen name is no longer replaced by Google's on the next sign-in.                                          |
+| PUT    | `/api/me/avatar`        | Body is the picture itself (`application/octet-stream`). The type is read from the content: JPEG, PNG, GIF (first frame) or WebP, at most 2 MiB and 4096 px a side. Re-encoded to a 256x256 WebP; metadata is dropped. 400 `invalid_avatar`, 413 `avatar_too_large`. |
+| DELETE | `/api/me/avatar`        | Drops the uploaded picture; `avatarUrl` is the Google one again (or `null`).                                                                                                                                                                                         |
+| GET    | `/api/users/{id}/avatar` | The stored WebP of any user who uploaded one (any signed-in user may read it); 404 otherwise. Cached for a year: the address carries a version (`?v=N`) that changes on every upload.                                                                                |
+
+`avatarUrl` is either an absolute `https://*.googleusercontent.com/...` address or, for an uploaded avatar, a
+**path on the API** (`/api/users/{id}/avatar?v=2`). The client joins such a path to the API origin
+(`resolveAvatarSrc`), so with an API on its own origin the page's `img-src` allows that origin.
+A profile change reaches the other clients with the SignalR event `UserProfileChanged` (see `docs/realtime-hub.md`).
+
 ## Messages (cursor pagination, history only)
 
 `GET /api/conversations/{id}/messages?limit=30&before={cursor}`
@@ -98,4 +115,7 @@ treats a failure as "everyone offline". Live changes come through SignalR `Prese
 | `invalid_message`            | Message empty or longer than 2000 (hub, and the first message of a request)      |
 | `dm_request_pending`         | The caller's own request to this user waits for an answer (also after a decline) |
 | `dm_incoming_request_exists` | This user already wrote to the caller: answer that request first                 |
+| `invalid_display_name`       | Profile name empty after trim, over 100 characters, or with forbidden characters |
+| `invalid_avatar`             | The upload is not a JPEG, PNG, GIF or WebP, is damaged, or is over 4096 px      |
+| `avatar_too_large`           | The upload is over 2 MiB (HTTP 413)                                              |
 | `dm_request_limit_reached`   | The caller has 20 requests waiting for an answer                                 |

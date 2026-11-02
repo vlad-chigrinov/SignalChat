@@ -76,6 +76,21 @@ There is no "stopped typing" event. The client hides the typing hint after its o
 
 `UserSummary` never carries an email. Email exists only in `GET /auth/me`.
 
+### `UserProfileChanged`
+
+```json
+{ "id": "7a659d8e-7310-4214-9547-3abd23778a18", "displayName": "Anna Smirnova", "avatarUrl": "/api/users/7a659d8e-7310-4214-9547-3abd23778a18/avatar?v=2" }
+```
+
+Sent when a user changes their name or avatar (`PUT /api/me/display-name`, `PUT` or `DELETE /api/me/avatar`). The audience is
+the user's room mates, the peers of their accepted direct conversations, and the user's own connections (other tabs). It is sent
+once, after the change is stored; a refused change sends nothing. Pending requests are not part of the audience (as with
+presence): a request's sender shows the new profile after the next `GET /api/direct-requests/incoming`.
+
+The event is a hint, not the source of truth: every REST list returns the current profile, so a client that misses it (offline,
+reconnecting) is correct again after the next load. Why an event and not only "on next load": a name that stays old until a
+reload looks like a bug in a chat, and the event costs one group send.
+
 ## Presence
 
 - Presence is scoped. A user sees and receives presence only for users who share a room or a direct conversation with them.
@@ -146,6 +161,7 @@ Per user, fixed window of one minute. The key is the session user; an anonymous 
 | `POST /api/rooms/{id}/join` and `/leave` | 30, shared | `RoomMembershipPerMinute` |
 | `POST /api/direct-conversations` | 10 | `DirectConversationCreatePerMinute` |
 | `POST /api/rooms` | 10 | `RoomCreatePerMinute` |
+| `PUT /api/me/display-name`, `PUT` and `DELETE /api/me/avatar` | 10, shared | `ProfileUpdatePerMinute` |
 
 The numbers above are defaults. Override them under `Chat:RateLimits` in configuration (for example `Chat:RateLimits:RoomCreatePerMinute`).
 

@@ -60,3 +60,35 @@ describe('requestJson error mapping', () => {
     await expect(requestJson<{ id: string }[]>('/api/rooms')).resolves.toEqual([{ id: 'a' }])
   })
 })
+
+describe('requestJson with a file body', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sends the file as it is, not labelled as JSON', async () => {
+    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchSpy)
+    const file = new Blob(['picture'], { type: 'image/png' })
+
+    await requestJson('/api/me/avatar', {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': 'application/octet-stream' },
+    })
+
+    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    expect(new Headers(init.headers).get('Content-Type')).toBe('application/octet-stream')
+    expect(init.body).toBe(file)
+  })
+
+  it('still labels a JSON body as JSON when no type is given', async () => {
+    const fetchSpy = vi.fn(async () => new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    await requestJson('/api/me/display-name', { method: 'PUT', body: '{"displayName":"x"}' })
+
+    const [, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit]
+    expect(new Headers(init.headers).get('Content-Type')).toBe('application/json')
+  })
+})

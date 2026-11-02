@@ -6,6 +6,7 @@ import {
   type ConversationId,
   type DirectConversation,
   type IncomingDirectRequest,
+  type UserSummary,
 } from '@/api'
 import type { DirectRequestReceivedEvent } from '@/realtime/hubContract'
 
@@ -65,9 +66,16 @@ export const useDirectRequestsStore = defineStore('directRequests', () => {
     remove(conversationId)
   }
 
+  /** A sender changed their name or avatar. */
+  function applyProfileChange(user: UserSummary): void {
+    for (const request of incoming.value) {
+      if (request.from.id === user.id) request.from = { ...user }
+    }
+  }
+
   function reset(): void {
     incoming.value = []
   }
 
-  return { incoming, count, load, applyReceived, accept, decline, reset }
+  return { incoming, count, load, applyReceived, accept, decline, applyProfileChange, reset }
 })

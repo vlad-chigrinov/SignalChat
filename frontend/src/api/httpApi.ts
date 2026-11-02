@@ -106,4 +106,20 @@ export const httpApi: ChatApi = {
   },
 
   getOnlineUserIds: () => requestJson<UserId[]>('/api/presence/online'),
+
+  changeDisplayName: (displayName) =>
+    requestJson<CurrentUser>('/api/me/display-name', {
+      method: 'PUT',
+      body: jsonBody({ displayName }),
+    }),
+
+  // The picture goes as the raw body: the server reads its type from the content, not from this header.
+  uploadAvatar: (file) =>
+    requestJson<CurrentUser>('/api/me/avatar', {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': 'application/octet-stream' },
+    }),
+
+  resetAvatar: () => requestJson<CurrentUser>('/api/me/avatar', { method: 'DELETE' }),
 }

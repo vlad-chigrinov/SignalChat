@@ -2,8 +2,11 @@
 import { computed } from 'vue'
 
 import type { UserSummary } from '@/api'
+import { avatarSrc } from '@/api/apiConfig'
 
 const props = withDefaults(defineProps<{ user: UserSummary; size?: number }>(), { size: 36 })
+
+const src = computed(() => avatarSrc(props.user.avatarUrl))
 
 const initials = computed(() =>
   props.user.displayName
@@ -17,13 +20,7 @@ const initials = computed(() =>
 
 <template>
   <span class="avatar" :style="{ width: `${size}px`, height: `${size}px` }" aria-hidden="true">
-    <img
-      v-if="user.avatarUrl"
-      :src="user.avatarUrl"
-      alt=""
-      loading="lazy"
-      referrerpolicy="no-referrer"
-    />
+    <img v-if="src" :src="src" alt="" loading="lazy" referrerpolicy="no-referrer" />
     <template v-else>{{ initials }}</template>
   </span>
 </template>

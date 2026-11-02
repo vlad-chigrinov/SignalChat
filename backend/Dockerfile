@@ -5,7 +5,9 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 COPY global.json ./
 COPY src ./src
-RUN dotnet publish src/SignalChat.Api/SignalChat.Api.csproj -c Release -o /app/publish
+# One runtime identifier: without it the publish carries the SkiaSharp native library of every platform (about 450 MB).
+# The images are built for linux/amd64 only (see .github/workflows/images.yml), on Alpine, hence musl.
+RUN dotnet publish src/SignalChat.Api/SignalChat.Api.csproj -c Release -r linux-musl-x64 --no-self-contained -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app

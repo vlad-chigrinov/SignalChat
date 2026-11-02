@@ -5,6 +5,7 @@ import { api, type Message, type UserSummary } from '@/api'
 import { mockCurrentUser } from '@/api/mock/mockData'
 import { resetSharedMockStore } from '@/api/mock/mockHistories'
 import { MAX_MESSAGE_LENGTH } from '@/utils/messageText'
+import { useAuthStore } from '@/stores/auth'
 import { useConnectionStore } from '@/stores/connection'
 import { useDirectRequestsStore } from '@/stores/directRequests'
 import { useMessagesStore } from '@/stores/messages'
@@ -76,6 +77,29 @@ describe('realtime service', () => {
 
       expect(presence.isOnline(PEER.id)).toBe(true)
       expect(typing.typingUserIds(ROOM)).toEqual([PEER.id])
+    })
+
+    it('shows a changed name and avatar of a peer without a reload', () => {
+      const messages = useMessagesStore()
+      messages.applyIncomingMessage(message('m1', '2026-01-01T10:00:00.000Z'))
+      const renamed: UserSummary = {
+        ...PEER,
+        displayName: 'Пётр Новый',
+        avatarUrl: '/api/users/peer/avatar?v=1',
+      }
+
+      hub.emitProfileChanged(renamed)
+
+      expect(messages.historyOf(ROOM).items[0]?.author).toEqual(renamed)
+    })
+
+    it('shows the own change made in another tab', () => {
+      const auth = useAuthStore()
+      auth.user = { ...ME, email: 'me@example.com' }
+
+      hub.emitProfileChanged({ ...ME, displayName: 'Я в другой вкладке' })
+
+      expect(auth.user?.displayName).toBe('Я в другой вкладке')
     })
 
     it('mirrors the hub connection state into the connection store', async () => {

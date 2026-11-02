@@ -70,6 +70,6 @@ public static class AuthEndpoints
             return Results.Unauthorized();
         }
 
-        return Results.Ok(new CurrentUserResponse(user.Id, user.DisplayName, user.AvatarUrl, user.Email));
+        return Results.Ok(CurrentUserResponse.From(user));
     }
 }

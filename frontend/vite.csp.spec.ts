@@ -56,10 +56,19 @@ describe('content security policy with an API on its own origin', () => {
     ])
   })
 
+  it('also lets the app show avatars that the API serves, and no other host', () => {
+    expect(policy.get('img-src')).toEqual([
+      "'self'",
+      'https://*.googleusercontent.com',
+      'https://chat-api.vlados.tech',
+    ])
+  })
+
   it('changes nothing else', () => {
     const plain = parsePolicy(buildContentSecurityPolicy())
     for (const name of plain.keys()) {
-      if (name !== 'connect-src') expect(policy.get(name)).toEqual(plain.get(name))
+      if (name !== 'connect-src' && name !== 'img-src')
+        expect(policy.get(name)).toEqual(plain.get(name))
     }
   })
 

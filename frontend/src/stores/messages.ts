@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-import { api, type ConversationId, type CursorPage, type Message } from '@/api'
+import { api, type ConversationId, type CursorPage, type Message, type UserSummary } from '@/api'
 import { errorMessage } from '@/utils/errorMessage'
 import { mergeMessages } from '@/utils/mergeMessages'
 
@@ -126,6 +126,15 @@ export const useMessagesStore = defineStore('messages', () => {
     useRoomsStore().applyLastMessage(message)
   }
 
+  /** An author changed their name or avatar: their loaded messages show the new profile. */
+  function applyProfileChange(user: UserSummary): void {
+    for (const history of Object.values(histories.value)) {
+      for (const message of history.items) {
+        if (message.author.id === user.id) message.author = { ...user }
+      }
+    }
+  }
+
   function reset(): void {
     histories.value = {}
   }
@@ -137,6 +146,7 @@ export const useMessagesStore = defineStore('messages', () => {
     loadOlder,
     refreshLatest,
     applyIncomingMessage,
+    applyProfileChange,
     reset,
   }
 })

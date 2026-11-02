@@ -19,6 +19,9 @@ public sealed class ChatRateLimitOptions
 
     public int RoomCreatePerMinute { get; set; } = 10;
 
+    /// <summary>Name and avatar changes share this limit; an upload costs a decode, so it stays low.</summary>
+    public int ProfileUpdatePerMinute { get; set; } = 10;
+
     /// <summary>Requests per client address; the test sign-in is not part of any user's allowance.</summary>
     public int TestLoginPerMinute { get; set; } = 20;
 
@@ -30,6 +33,7 @@ public sealed class ChatRateLimitOptions
         nameof(RoomMembershipPerMinute),
         nameof(DirectConversationCreatePerMinute),
         nameof(RoomCreatePerMinute),
+        nameof(ProfileUpdatePerMinute),
         nameof(TestLoginPerMinute),
     ];
 }

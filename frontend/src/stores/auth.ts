@@ -1,12 +1,13 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 
-import { api, type CurrentUser } from '@/api'
+import { api, type CurrentUser, type UserSummary } from '@/api'
 import { errorMessage } from '@/utils/errorMessage'
 
 import { useDirectRequestsStore } from './directRequests'
 import { useMessagesStore } from './messages'
 import { usePresenceStore } from './presence'
+import { applyProfileChange } from './profileSync'
 import { useRoomsStore } from './rooms'
 
 type AuthStatus = 'unknown' | 'authenticated' | 'anonymous'
@@ -48,6 +49,35 @@ export const useAuthStore = defineStore('auth', () => {
     return isAuthenticated.value
   }
 
+  /** The signed-in user's own change (a live event from another tab). Anyone else's change is not the session's profile. */
+  function applyOwnProfile(profile: UserSummary): void {
+    if (user.value?.id !== profile.id) return
+    user.value = { ...user.value, displayName: profile.displayName, avatarUrl: profile.avatarUrl }
+  }
+
+  /** Takes the profile the server answered with: the header, the profile page and the lists show it at once. */
+  function takeUpdatedProfile(profile: CurrentUser): void {
+    user.value = profile
+    applyProfileChange({
+      id: profile.id,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
+    })
+  }
+
+  /** Rejects with the API error (`invalid_display_name`); the profile stays as it was. */
+  async function changeDisplayName(displayName: string): Promise<void> {
+    takeUpdatedProfile(await api.changeDisplayName(displayName))
+  }
+
+  async function uploadAvatar(file: Blob): Promise<void> {
+    takeUpdatedProfile(await api.uploadAvatar(file))
+  }
+
+  async function resetAvatar(): Promise<void> {
+    takeUpdatedProfile(await api.resetAvatar())
+  }
+
   async function logout(): Promise<void> {
     try {
       await api.logout()
@@ -62,5 +92,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, status, error, isAuthenticated, ensureLoaded, login, logout }
+  return {
+    user,
+    status,
+    error,
+    isAuthenticated,
+    ensureLoaded,
+    login,
+    logout,
+    applyOwnProfile,
+    changeDisplayName,
+    uploadAvatar,
+    resetAvatar,
+  }
 })

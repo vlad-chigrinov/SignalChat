@@ -37,7 +37,8 @@ export async function requestJson<T>(path: string, init: RequestInit = {}): Prom
   headers.set('Accept', 'application/json')
   // Lets the backend answer API calls with 401 instead of redirecting them to Google.
   headers.set('X-Requested-With', 'XMLHttpRequest')
-  if (init.body !== undefined) headers.set('Content-Type', 'application/json')
+  if (init.body !== undefined && !headers.has('Content-Type'))
+    headers.set('Content-Type', 'application/json')
 
   const response = await fetch(apiUrl(path), { ...init, headers, credentials: FETCH_CREDENTIALS })
   if (!response.ok) {

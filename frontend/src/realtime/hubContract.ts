@@ -23,6 +23,7 @@ export const HUB_EVENTS = {
   PresenceChanged: 'PresenceChanged',
   DirectRequestReceived: 'DirectRequestReceived',
   DirectRequestAccepted: 'DirectRequestAccepted',
+  UserProfileChanged: 'UserProfileChanged',
 } as const
 
 /** The client hides a typing indicator after this long without a new `UserTyping`. */
@@ -87,6 +88,8 @@ export interface HubEventMap {
   PresenceChanged: PresenceChange
   DirectRequestReceived: DirectRequestReceivedEvent
   DirectRequestAccepted: DirectRequestAcceptedEvent
+  /** A user with a shared conversation, or the caller in another tab, changed their name or avatar. */
+  UserProfileChanged: UserSummary
 }
 
 export type HubEventName = keyof HubEventMap

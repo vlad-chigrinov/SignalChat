@@ -30,6 +30,18 @@ export function joinApiUrl(origin: string, path: string): string {
   return `${origin}${path}`
 }
 
+/**
+ * Where an avatar is loaded from. The API names an uploaded avatar by a path on itself (`/api/users/{id}/avatar?v=2`);
+ * the page may be on another origin, so the path is joined to the API origin. A Google avatar is already absolute.
+ * An address that starts with two slashes would point at a host of its choosing: it is dropped.
+ */
+export function resolveAvatarSrc(origin: string, avatarUrl: string | null): string | null {
+  if (avatarUrl === null || !avatarUrl.startsWith('/')) return avatarUrl
+  const second = avatarUrl.charAt(1)
+  if (second === '/' || second === '\\') return null
+  return joinApiUrl(origin, avatarUrl)
+}
+
 /** The session cookie goes to another origin only when the API really is on another origin. */
 export function credentialsFor(origin: string): RequestCredentials {
   return origin === '' ? 'same-origin' : 'include'

@@ -1,8 +1,10 @@
 import { api, type ConversationId, type Message } from '@/api'
+import { useAuthStore } from '@/stores/auth'
 import { useConnectionStore } from '@/stores/connection'
 import { useDirectRequestsStore } from '@/stores/directRequests'
 import { useMessagesStore } from '@/stores/messages'
 import { usePresenceStore } from '@/stores/presence'
+import { applyProfileChange } from '@/stores/profileSync'
 import { useRoomsStore } from '@/stores/rooms'
 import { useTypingStore } from '@/stores/typing'
 import { normalizeMessageText } from '@/utils/messageText'
@@ -40,6 +42,7 @@ export interface RealtimeService {
  * is what gets joined again after a reconnect (groups are per connection).
  */
 export function createRealtimeService(hub: ChatHub): RealtimeService {
+  const auth = useAuthStore()
   const messages = useMessagesStore()
   const presence = usePresenceStore()
   const typing = useTypingStore()
@@ -102,6 +105,10 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
     hub.on('UserTyping', (event) => typing.applyUserTyping(event)),
     hub.on('DirectRequestReceived', (event) => directRequests.applyReceived(event)),
     hub.on('DirectRequestAccepted', (event) => void handleRequestAccepted(event.conversationId)),
+    hub.on('UserProfileChanged', (user) => {
+      auth.applyOwnProfile(user)
+      applyProfileChange(user)
+    }),
     hub.onConnectionState((state) => connection.setState(state)),
     hub.onReconnected(() => void restoreAfterReconnect()),
     hub.onClosed(() => void handleServerClose()),

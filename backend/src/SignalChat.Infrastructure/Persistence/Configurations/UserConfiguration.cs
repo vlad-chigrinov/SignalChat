@@ -21,6 +21,11 @@ internal sealed class UserConfiguration(IPersonalDataCipher cipher) : IEntityTyp
 
         builder.Property(user => user.DisplayName).HasMaxLength(User.DisplayNameMaxLength).IsRequired();
         builder.Property(user => user.AvatarUrl).HasMaxLength(User.AvatarUrlMaxLength);
+        builder.Property(user => user.GoogleAvatarUrl).HasMaxLength(User.AvatarUrlMaxLength);
+        // Existing rows are users who have not edited anything yet.
+        builder.Property(user => user.HasCustomDisplayName).IsRequired().HasDefaultValue(false);
+        builder.Property(user => user.HasCustomAvatar).IsRequired().HasDefaultValue(false);
+        builder.Property(user => user.AvatarVersion).IsRequired().HasDefaultValue(0);
         builder.Property(user => user.CreatedAt).IsRequired();
         builder.Property(user => user.LastLoginAt).IsRequired();
         // Existing rows get the initial version when the column is added.

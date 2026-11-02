@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { credentialsFor, joinApiUrl, normalizeApiOrigin, webSocketOriginOf } from '../apiOrigin'
+import {
+  credentialsFor,
+  joinApiUrl,
+  normalizeApiOrigin,
+  resolveAvatarSrc,
+  webSocketOriginOf,
+} from '../apiOrigin'
 
 describe('normalizeApiOrigin', () => {
   it('means "same origin" when nothing is set', () => {
@@ -45,5 +51,28 @@ describe('webSocketOriginOf', () => {
   it('maps https to wss and http to ws', () => {
     expect(webSocketOriginOf('https://chat-api.vlados.tech')).toBe('wss://chat-api.vlados.tech')
     expect(webSocketOriginOf('http://localhost:5001')).toBe('ws://localhost:5001')
+  })
+})
+
+describe('resolveAvatarSrc', () => {
+  it('leaves a Google avatar and a missing avatar alone', () => {
+    expect(
+      resolveAvatarSrc('https://chat-api.vlados.tech', 'https://lh3.googleusercontent.com/a/x'),
+    ).toBe('https://lh3.googleusercontent.com/a/x')
+    expect(resolveAvatarSrc('https://chat-api.vlados.tech', null)).toBeNull()
+  })
+
+  it('serves an uploaded avatar from the API origin, whatever origin the page has', () => {
+    expect(resolveAvatarSrc('https://chat-api.vlados.tech', '/api/users/u1/avatar?v=3')).toBe(
+      'https://chat-api.vlados.tech/api/users/u1/avatar?v=3',
+    )
+  })
+
+  it('keeps the path when the API shares the origin of the page', () => {
+    expect(resolveAvatarSrc('', '/api/users/u1/avatar?v=3')).toBe('/api/users/u1/avatar?v=3')
+  })
+
+  it('never turns a protocol-relative address into a request to another host', () => {
+    expect(resolveAvatarSrc('https://chat-api.vlados.tech', '//evil.example/a.png')).toBeNull()
   })
 })

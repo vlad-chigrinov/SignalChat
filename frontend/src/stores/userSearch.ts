@@ -13,9 +13,13 @@ export const useUserSearchStore = defineStore('userSearch', () => {
     results.value = await api.searchUsers(query.trim(), USER_SEARCH_MAX_LIMIT)
   }
 
+  function applyProfileChange(user: UserSummary): void {
+    results.value = results.value.map((found) => (found.id === user.id ? { ...user } : found))
+  }
+
   function clear(): void {
     results.value = []
   }
 
-  return { results, search, clear }
+  return { results, search, applyProfileChange, clear }
 })

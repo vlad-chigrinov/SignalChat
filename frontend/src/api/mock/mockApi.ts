@@ -12,6 +12,7 @@ import {
   sendDirectRequest,
 } from './mockDirects'
 import { createRoom, discoverRooms, joinRoom, leaveRoom, listMyRooms } from './mockRooms'
+import { changeDisplayName, resetAvatar, uploadAvatar } from './mockProfile'
 import { searchUsers } from './mockUsers'
 import { mockOnlineUserIds } from './mockData'
 
@@ -114,5 +115,11 @@ export function createMockApi(options: MockApiOptions = {}): ChatApi {
     },
 
     getOnlineUserIds: () => delay([...mockOnlineUserIds]),
+
+    changeDisplayName: (displayName) => delay(changeDisplayName(sharedMockStore(), displayName)),
+
+    uploadAvatar: (file) => delay(uploadAvatar(sharedMockStore(), file)),
+
+    resetAvatar: () => delay(resetAvatar(sharedMockStore())),
   }
 }

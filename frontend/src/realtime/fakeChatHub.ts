@@ -40,6 +40,7 @@ export class FakeChatHub implements ChatHub {
     PresenceChanged: new Set(),
     DirectRequestReceived: new Set(),
     DirectRequestAccepted: new Set(),
+    UserProfileChanged: new Set(),
   }
   private readonly typingSent: ConversationId[] = []
   private readonly queuedStartFailures: HubCallError[] = []
@@ -147,6 +148,10 @@ export class FakeChatHub implements ChatHub {
 
   emitDirectRequestAccepted(event: DirectRequestAcceptedEvent): void {
     this.emit('DirectRequestAccepted', event)
+  }
+
+  emitProfileChanged(user: UserSummary): void {
+    this.emit('UserProfileChanged', user)
   }
 
   /** Drops the connection and brings it back, as an automatic reconnect does. */

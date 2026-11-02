@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
+using SignalChat.Api.Profile;
+
 namespace SignalChat.Api.Hubs;
 
 /// <summary>The single place where the real-time chat is registered (hub, limits, presence, filters).</summary>
@@ -24,6 +26,7 @@ public static class ChatSignalRRegistration
         services.AddSingleton<PresenceNotifier>();
         services.AddSingleton<PresenceAnnouncer>();
         services.AddSingleton<DirectRequestNotifier>();
+        services.AddScoped<ProfileChangeNotifier>();
         services.AddScoped<HubGroupMembership>();
         services.AddScoped<HubSessionGuard>();
         services.AddScoped<ChatMessaging>();

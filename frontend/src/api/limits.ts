@@ -4,6 +4,18 @@ export const USER_SEARCH_MAX_LIMIT = 20
 export const HISTORY_DEFAULT_LIMIT = 30
 export const HISTORY_MAX_LIMIT = 100
 
+/** Profile limits. The server checks the same ones; the client only saves a round trip. */
+export const DISPLAY_NAME_MAX_LENGTH = 100
+const BYTES_PER_MEBIBYTE = 1024 * 1024
+export const AVATAR_MAX_UPLOAD_BYTES = 2 * BYTES_PER_MEBIBYTE
+/** The picture types the server decodes. The server decides by content; this is only the file picker's hint. */
+export const AVATAR_ALLOWED_TYPES: readonly string[] = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+]
+
 /** Keeps a requested page size within 1..max. Non-integers are rounded down. */
 export function clampLimit(requested: number, max: number): number {
   if (!Number.isFinite(requested)) return max

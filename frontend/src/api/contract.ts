@@ -44,4 +44,13 @@ export interface ChatApi {
   /** History only. Messages are sent through the realtime hub (C1), never over REST. */
   getMessages(conversationId: ConversationId, query: HistoryQuery): Promise<CursorPage<Message>>
   getOnlineUserIds(): Promise<UserId[]>
+  /** The caller's own name. Rejects with `invalid_display_name`. Answers with the updated profile. */
+  changeDisplayName(displayName: string): Promise<CurrentUser>
+  /**
+   * The caller's own avatar: the picture is sent as it is and the server re-encodes it. Rejects with
+   * `invalid_avatar` or `avatar_too_large`. Answers with the updated profile.
+   */
+  uploadAvatar(file: Blob): Promise<CurrentUser>
+  /** Drops the uploaded avatar; the profile shows the Google one again. */
+  resetAvatar(): Promise<CurrentUser>
 }

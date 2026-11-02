@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Routing;
+using SignalChat.Api.Profile;
 
 namespace SignalChat.Api.Chat;
 
@@ -15,6 +16,7 @@ public static class ChatEndpoints
         api.MapMessageEndpoints();
         api.MapUserSearchEndpoints();
         api.MapPresenceEndpoints();
+        api.MapProfileEndpoints();
         return endpoints;
     }
 }

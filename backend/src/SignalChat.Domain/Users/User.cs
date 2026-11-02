@@ -28,7 +28,22 @@ public sealed class User
 
     public string DisplayName { get; private set; }
 
+    /// <summary>
+    /// The picture chat shows: the uploaded one (<see cref="UploadedAvatarAddress"/>) or, without it, the Google one.
+    /// </summary>
     public string? AvatarUrl { get; private set; }
+
+    /// <summary>The picture Google sent on the latest sign-in; what <see cref="UseGoogleAvatar"/> returns to.</summary>
+    public string? GoogleAvatarUrl { get; private set; }
+
+    /// <summary>True once the user chose a name; Google's name then no longer replaces it on sign-in.</summary>
+    public bool HasCustomDisplayName { get; private set; }
+
+    /// <summary>True while the user's own uploaded picture is the avatar.</summary>
+    public bool HasCustomAvatar { get; private set; }
+
+    /// <summary>Counts uploads. It is part of the avatar address, so every upload is a new address and caches let go.</summary>
+    public int AvatarVersion { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -68,10 +83,42 @@ public sealed class User
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
 
         Email = email.Trim();
-        DisplayName = NormalizeDisplayName(displayName);
-        AvatarUrl = NormalizeAvatarUrl(avatarUrl);
+        if (!HasCustomDisplayName)
+        {
+            DisplayName = NormalizeDisplayName(displayName);
+        }
+        GoogleAvatarUrl = NormalizeAvatarUrl(avatarUrl);
+        if (!HasCustomAvatar)
+        {
+            AvatarUrl = GoogleAvatarUrl;
+        }
         LastLoginAt = now;
     }
+
+    /// <summary>Sets the name the user typed. Refuses an empty, too long or control-character name with <c>invalid_display_name</c>.</summary>
+    public void ChangeDisplayName(string? displayName)
+    {
+        DisplayName = DisplayNamePolicy.Validate(displayName);
+        HasCustomDisplayName = true;
+    }
+
+    /// <summary>The user's own picture becomes the avatar. The bytes live in <see cref="UserAvatar"/>.</summary>
+    public void UseUploadedAvatar()
+    {
+        AvatarVersion++;
+        HasCustomAvatar = true;
+        AvatarUrl = UploadedAvatarAddress(Id, AvatarVersion);
+    }
+
+    /// <summary>Back to the picture Google sent (none when it sent none).</summary>
+    public void UseGoogleAvatar()
+    {
+        HasCustomAvatar = false;
+        AvatarUrl = GoogleAvatarUrl;
+    }
+
+    /// <summary>Where the API serves an uploaded avatar. Relative: the SPA adds the API origin.</summary>
+    public static string UploadedAvatarAddress(Guid userId, int version) => $"/api/users/{userId}/avatar?v={version}";
 
     private static string NormalizeDisplayName(string? displayName)
     {

@@ -101,6 +101,12 @@ In production, register `https://<your-api-host>/auth/callback/google` the same 
   calls must go through the same origin (the Vite proxy in dev) with `credentials: 'include'`.
 - Email is encrypted in the database (AES-256-GCM, `PII_ENCRYPTION_KEY`). Display name and avatar
   are the public chat profile and are stored as is.
+- Profile editing (`PUT /api/me/display-name`, `PUT`/`DELETE /api/me/avatar`, `GET /api/users/{id}/avatar`): a
+  user changes only their own name and avatar. An uploaded picture is decoded and written again as a 256x256 WebP
+  (SkiaSharp: type from the content, 2 MiB and 4096 px limits, no metadata kept) and stored in the database table
+  `user_avatars`, so there is no volume to mount and a backup of PostgreSQL covers it. The avatar address carries a
+  version and is cached for a year. Other online clients get the change as the SignalR event `UserProfileChanged`.
+  Details: [docs/realtime-hub.md](docs/realtime-hub.md), `frontend/src/api/CONTRACT.md`.
 
 ## Deploy
 

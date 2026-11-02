@@ -1,4 +1,5 @@
 using SignalChat.Domain.Chat;
+using SignalChat.Domain.Users;
 
 namespace SignalChat.Api.Chat;
 
@@ -8,6 +9,7 @@ public static class ChatErrorStatus
     private const int BadRequest = StatusCodes.Status400BadRequest;
     private const int NotFound = StatusCodes.Status404NotFound;
     private const int Conflict = StatusCodes.Status409Conflict;
+    private const int PayloadTooLarge = StatusCodes.Status413PayloadTooLarge;
 
     public static int For(string code) => code switch
     {
@@ -17,6 +19,7 @@ public static class ChatErrorStatus
             or DirectRequestErrorCodes.IncomingRequestExists
             or DirectRequestErrorCodes.RequestLimitReached
             or DirectRequestErrorCodes.NotAccepted => Conflict,
+        UserProfileErrorCodes.AvatarTooLarge => PayloadTooLarge,
         _ => BadRequest,
     };
 }

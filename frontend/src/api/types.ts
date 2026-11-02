@@ -102,6 +102,9 @@ export type ApiErrorCode =
   | 'dm_request_pending'
   | 'dm_incoming_request_exists'
   | 'dm_request_limit_reached'
+  | 'invalid_display_name'
+  | 'invalid_avatar'
+  | 'avatar_too_large'
 
 export interface CreateRoomInput {
   name: string

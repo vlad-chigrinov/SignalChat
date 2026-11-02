@@ -9,12 +9,13 @@ import { webSocketOriginOf } from './src/api/apiOrigin.ts'
  */
 function cspDirectives(apiOrigin: string): Record<string, readonly string[]> {
   const connectSources = apiOrigin === '' ? [] : [apiOrigin, webSocketOriginOf(apiOrigin)]
+  const apiSources = apiOrigin === '' ? [] : [apiOrigin]
   return {
     'default-src': ["'self'"],
     'script-src': ["'self'"],
     'style-src': ["'self'"],
-    // Google avatars are the only external images the app shows (see UserAvatar.vue).
-    'img-src': ["'self'", 'https://*.googleusercontent.com'],
+    // Avatars come from Google or, when the API has an origin of its own, from the API (see UserAvatar.vue).
+    'img-src': ["'self'", 'https://*.googleusercontent.com', ...apiSources],
     'font-src': ["'self'"],
     'connect-src': ["'self'", ...connectSources],
     'object-src': ["'none'"],

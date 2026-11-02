@@ -23,6 +23,8 @@ public static class DependencyInjection
         services.AddSingleton<IPersonalDataCipher>(new AesGcmPersonalDataCipher(personalDataKey));
         services.AddDbContext<SignalChatDbContext>(options => options.UseNpgsql(connectionString));
         services.AddScoped<IUserAccountService, UserAccountService>();
+        services.AddSingleton<IAvatarImageProcessor, AvatarImageProcessor>();
+        services.AddScoped<IProfileService, ProfileService>();
         services.AddChatServices();
 
         services.AddHealthChecks()

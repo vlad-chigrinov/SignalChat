@@ -79,7 +79,8 @@ export function createSeedStore(): MockStore {
     ['dm-igor', buildHistory('dm-igor', [me, igor], DIRECT_IGOR_MESSAGE_COUNT)],
   ])
   return {
-    currentUser: me,
+    // A copy: the profile can be edited, and the next store must start from the seed again.
+    currentUser: { ...me },
     directory: mockDirectory.map((user) => ({ ...user })),
     rooms: new Map([
       [

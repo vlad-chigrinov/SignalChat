@@ -10,6 +10,7 @@ import {
   type Message,
   type Room,
   type UserId,
+  type UserSummary,
 } from '@/api'
 import { DISCOVER_MAX_LIMIT } from '@/api/limits'
 import { errorMessage } from '@/utils/errorMessage'
@@ -141,6 +142,13 @@ export const useRoomsStore = defineStore('rooms', () => {
     directConversations.value = await api.listDirectConversations()
   }
 
+  /** A peer changed their name or avatar. The summary is copied, so no list shares an object with another. */
+  function applyProfileChange(user: UserSummary): void {
+    for (const direct of directConversations.value) {
+      if (direct.peer.id === user.id) direct.peer = { ...user }
+    }
+  }
+
   function reset(): void {
     rooms.value = []
     directConversations.value = []
@@ -169,6 +177,7 @@ export const useRoomsStore = defineStore('rooms', () => {
     sendDirectRequest,
     markAccepted,
     refreshDirects,
+    applyProfileChange,
     reset,
   }
 })

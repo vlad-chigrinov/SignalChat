@@ -18,4 +18,7 @@ public interface IChatClient
     Task DirectRequestReceived(DirectRequestReceivedDto request);
 
     Task DirectRequestAccepted(DirectRequestAcceptedDto accepted);
+
+    /// <summary>A user with a shared conversation (or the caller, in another tab) changed their name or avatar.</summary>
+    Task UserProfileChanged(UserSummaryDto user);
 }
