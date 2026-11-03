@@ -16,14 +16,20 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: '/',
-    name: ROUTE_NAMES.chatList,
-    component: () => import('@/views/ChatListView.vue'),
-  },
-  {
-    path: '/chat/:id',
-    name: ROUTE_NAMES.chat,
-    component: () => import('@/views/ChatView.vue'),
-    props: true,
+    component: () => import('@/views/ChatShell.vue'),
+    children: [
+      {
+        path: '',
+        name: ROUTE_NAMES.chatList,
+        component: () => import('@/views/NoChatSelected.vue'),
+      },
+      {
+        path: 'chat/:id',
+        name: ROUTE_NAMES.chat,
+        component: () => import('@/views/ChatView.vue'),
+        props: true,
+      },
+    ],
   },
   {
     path: '/profile',

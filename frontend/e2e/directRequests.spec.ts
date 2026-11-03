@@ -12,6 +12,9 @@ const TITLE_HEADING_LEVEL = 1
 const WAITING_TEXT = 'Ожидает ответа собеседника.'
 const ALREADY_SENT_TEXT = 'Запрос уже отправлен — ждём ответа.'
 
+/** Narrow screen: the chat list and the chat take turns, and the members open in a dialog. */
+test.use({ viewport: { width: 700, height: 800 } })
+
 /** Opens the search dialog and writes the first message to the user found by `name`. */
 async function sendRequestTo(page: Page, name: string, text: string): Promise<void> {
   await page.getByRole('button', { name: 'Новое сообщение' }).click()

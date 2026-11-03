@@ -60,7 +60,8 @@ const sentAt = computed(() => {
 }
 
 .item:hover,
-.item:focus-visible {
+.item:focus-visible,
+.item.router-link-exact-active {
   background: var(--color-surface-hover);
 }
 

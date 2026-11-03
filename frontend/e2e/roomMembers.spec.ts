@@ -15,6 +15,9 @@ const PETR = 'Пётр Соколов'
 const REQUEST_TEXT = 'Привет! Мы в одной комнате.'
 const TITLE_HEADING_LEVEL = 1
 
+/** Narrow screen: the chat list and the chat take turns, and the members open in a dialog. */
+test.use({ viewport: { width: 700, height: 800 } })
+
 function membersDialog(page: Page): Locator {
   return page.getByRole('dialog', { name: 'Участники' })
 }

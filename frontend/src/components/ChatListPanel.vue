@@ -40,7 +40,7 @@ function openDirect(direct: DirectConversation): void {
 </script>
 
 <template>
-  <main class="chat-list">
+  <nav class="chat-list" aria-label="Список чатов">
     <p v-if="rooms.status === 'loading'" class="state">Загрузка чатов…</p>
 
     <div v-else-if="rooms.status === 'error'" class="state" role="alert">
@@ -99,13 +99,12 @@ function openDirect(direct: DirectConversation): void {
       @close="isUserSearchOpen = false"
       @opened="openDirect"
     />
-  </main>
+  </nav>
 </template>
 
 <style scoped>
 .chat-list {
-  width: min(100%, 720px);
-  margin: 0 auto;
+  height: 100%;
   padding: 16px;
   overflow-y: auto;
 }
@@ -113,6 +112,7 @@ function openDirect(direct: DirectConversation): void {
 .toolbar {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
   justify-content: flex-end;
   padding: 0 12px;
 }

@@ -6,9 +6,11 @@ import InviteToRoomDialog from '@/components/InviteToRoomDialog.vue'
 import LeaveRoomButton from '@/components/LeaveRoomButton.vue'
 import MessageComposer from '@/components/MessageComposer.vue'
 import MessageList from '@/components/MessageList.vue'
+import ParticipantsPanel from '@/components/ParticipantsPanel.vue'
 import PresenceDot from '@/components/PresenceDot.vue'
 import RoomMembersDialog from '@/components/RoomMembersDialog.vue'
 import TypingIndicator from '@/components/TypingIndicator.vue'
+import { useLayout } from '@/composables/useLayout'
 import { getRealtimeService } from '@/realtime'
 import { ROUTE_NAMES } from '@/router/routes'
 import { useAuthStore } from '@/stores/auth'
@@ -33,6 +35,7 @@ const typing = useTypingStore()
 const connection = useConnectionStore()
 const realtime = getRealtimeService()
 const router = useRouter()
+const { hasSidebar, hasParticipantsPanel } = useLayout()
 
 /** Sending is hub-only (C1): without a live connection the composer is blocked. */
 const isSendingUnavailable = computed(() => connection.state !== 'connected')
@@ -110,6 +113,9 @@ async function leftRoom(roomId: string): Promise<void> {
 
 const notifyTyping = () => realtime.notifyTyping(props.id)
 
+const isRoom = computed(() => conversation.value?.kind === 'room')
+const showParticipantsPanel = computed(() => isRoom.value && hasParticipantsPanel.value)
+
 const isMembersOpen = ref(false)
 const isInviteOpen = ref(false)
 
@@ -121,80 +127,100 @@ async function openDirect(conversationId: ConversationId): Promise<void> {
 </script>
 
 <template>
-  <main class="chat">
-    <header class="chat-header">
-      <RouterLink class="back" :to="{ name: ROUTE_NAMES.chatList }" aria-label="К списку чатов">
-        ←
-      </RouterLink>
-      <div class="heading">
-        <h1>{{ title }}</h1>
-        <p class="subtitle">
-          <PresenceDot
-            v-if="conversation?.kind === 'direct'"
-            :online="presence.isOnline(conversation.peer.id)"
-          />
-          {{ subtitle }}
-        </p>
-      </div>
-      <div v-if="conversation?.kind === 'room'" class="room-actions">
-        <button type="button" class="button secondary" @click="isMembersOpen = true">
-          Участники
-        </button>
-        <button type="button" class="button secondary" @click="isInviteOpen = true">
-          Пригласить
-        </button>
-        <LeaveRoomButton :room-id="id" @left="leftRoom" />
-      </div>
-    </header>
-
-    <p v-if="isUnknown" class="state" role="alert">Чат не найден или у вас нет к нему доступа.</p>
-
-    <template v-else>
-      <p v-if="history.error" class="state error" role="alert">
-        {{ history.error }}
-        <button
-          type="button"
-          class="link-button"
-          @click="history.hasLoadedLatest ? messages.loadOlder(id) : messages.loadLatest(id)"
+  <div class="chat-layout">
+    <main class="chat">
+      <header class="chat-header">
+        <RouterLink
+          v-if="!hasSidebar"
+          class="back"
+          :to="{ name: ROUTE_NAMES.chatList }"
+          aria-label="К списку чатов"
         >
-          Повторить
-        </button>
-      </p>
-      <MessageList
-        :key="id"
-        :messages="history.items"
-        :has-more="history.nextCursor !== null"
-        :is-loading="history.isLoading"
-        :current-user-id="auth.user?.id ?? null"
-        :notices="roomNotices.noticesOf(id)"
-        @load-older="messages.loadOlder(id)"
-      />
-      <TypingIndicator :text="typingText" />
-      <MessageComposer
-        :send="send"
-        :send-photos="sendPhotos"
-        :unavailable="isSendingUnavailable || isAwaitingAnswer"
-        :unavailable-reason="composerBlockedReason"
-        @typing="notifyTyping"
-      />
-    </template>
+          ←
+        </RouterLink>
+        <div class="heading">
+          <h1>{{ title }}</h1>
+          <p class="subtitle">
+            <PresenceDot
+              v-if="conversation?.kind === 'direct'"
+              :online="presence.isOnline(conversation.peer.id)"
+            />
+            {{ subtitle }}
+          </p>
+        </div>
+        <div v-if="conversation?.kind === 'room'" class="room-actions">
+          <button
+            v-if="!showParticipantsPanel"
+            type="button"
+            class="button secondary"
+            @click="isMembersOpen = true"
+          >
+            Участники
+          </button>
+          <button type="button" class="button secondary" @click="isInviteOpen = true">
+            Пригласить
+          </button>
+          <LeaveRoomButton :room-id="id" @left="leftRoom" />
+        </div>
+      </header>
 
-    <RoomMembersDialog
-      v-if="isMembersOpen"
-      :room-id="id"
-      @close="isMembersOpen = false"
-      @opened="openDirect"
-    />
-    <InviteToRoomDialog v-if="isInviteOpen" :room-id="id" @close="isInviteOpen = false" />
-  </main>
+      <p v-if="isUnknown" class="state" role="alert">Чат не найден или у вас нет к нему доступа.</p>
+
+      <template v-else>
+        <p v-if="history.error" class="state error" role="alert">
+          {{ history.error }}
+          <button
+            type="button"
+            class="link-button"
+            @click="history.hasLoadedLatest ? messages.loadOlder(id) : messages.loadLatest(id)"
+          >
+            Повторить
+          </button>
+        </p>
+        <MessageList
+          :key="id"
+          :messages="history.items"
+          :has-more="history.nextCursor !== null"
+          :is-loading="history.isLoading"
+          :current-user-id="auth.user?.id ?? null"
+          :notices="roomNotices.noticesOf(id)"
+          @load-older="messages.loadOlder(id)"
+        />
+        <TypingIndicator :text="typingText" />
+        <MessageComposer
+          :send="send"
+          :send-photos="sendPhotos"
+          :unavailable="isSendingUnavailable || isAwaitingAnswer"
+          :unavailable-reason="composerBlockedReason"
+          @typing="notifyTyping"
+        />
+      </template>
+
+      <RoomMembersDialog
+        v-if="isMembersOpen"
+        :room-id="id"
+        @close="isMembersOpen = false"
+        @opened="openDirect"
+      />
+      <InviteToRoomDialog v-if="isInviteOpen" :room-id="id" @close="isInviteOpen = false" />
+    </main>
+    <ParticipantsPanel v-if="showParticipantsPanel" :room-id="id" />
+  </div>
 </template>
 
 <style scoped>
+.chat-layout {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
 .chat {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  width: min(100%, 960px);
-  margin: 0 auto;
+  min-width: 0;
+  height: 100%;
 }
 
 .chat-header {
