@@ -22,6 +22,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   dm_request_pending: HTTP_CONFLICT,
   dm_incoming_request_exists: HTTP_CONFLICT,
   dm_request_limit_reached: HTTP_CONFLICT,
+  already_member: HTTP_CONFLICT,
   invalid_display_name: HTTP_BAD_REQUEST,
   invalid_avatar: HTTP_BAD_REQUEST,
   avatar_too_large: HTTP_PAYLOAD_TOO_LARGE,

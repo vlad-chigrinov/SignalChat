@@ -12,6 +12,7 @@ import {
   sendDirectRequest,
 } from './mockDirects'
 import { createRoom, discoverRooms, joinRoom, leaveRoom, listMyRooms } from './mockRooms'
+import { inviteToRoom, listRoomMembers } from './mockRoomMembers'
 import { changeDisplayName, resetAvatar, uploadAvatar } from './mockProfile'
 import { searchUsers } from './mockUsers'
 import { mockOnlineUserIds } from './mockData'
@@ -82,6 +83,11 @@ export function createMockApi(options: MockApiOptions = {}): ChatApi {
     joinRoom: (roomId) => delay(joinRoom(sharedMockStore(), callerId(), roomId)),
 
     leaveRoom: (roomId) => delay(leaveRoom(sharedMockStore(), callerId(), roomId)),
+
+    listRoomMembers: (roomId) => delay(listRoomMembers(sharedMockStore(), callerId(), roomId)),
+
+    inviteToRoom: (roomId, userId) =>
+      delay(inviteToRoom(sharedMockStore(), callerId(), roomId, userId)),
 
     listDirectConversations: () => delay(listMyDirects(sharedMockStore(), callerId())),
 

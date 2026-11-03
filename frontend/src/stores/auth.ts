@@ -8,6 +8,8 @@ import { useDirectRequestsStore } from './directRequests'
 import { useMessagesStore } from './messages'
 import { usePresenceStore } from './presence'
 import { applyProfileChange } from './profileSync'
+import { useRoomMembersStore } from './roomMembers'
+import { useRoomNoticesStore } from './roomNotices'
 import { useRoomsStore } from './rooms'
 
 type AuthStatus = 'unknown' | 'authenticated' | 'anonymous'
@@ -86,6 +88,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = null
       status.value = 'anonymous'
       useRoomsStore().reset()
+      useRoomMembersStore().reset()
+      useRoomNoticesStore().reset()
       useDirectRequestsStore().reset()
       useMessagesStore().reset()
       usePresenceStore().reset()

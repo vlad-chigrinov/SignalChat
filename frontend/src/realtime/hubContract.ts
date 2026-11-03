@@ -2,7 +2,7 @@
  * Client side of the ChatHub contract (see .agentsroom memory `features/realtime-hub-contract`).
  * Names and payloads must match the backend hub exactly.
  */
-import type { ConversationId, Message, PresenceChange, UserId, UserSummary } from '@/api'
+import type { ConversationId, Message, PresenceChange, Room, UserId, UserSummary } from '@/api'
 
 export const HUB_PATH = '/hubs/chat'
 
@@ -24,6 +24,8 @@ export const HUB_EVENTS = {
   DirectRequestReceived: 'DirectRequestReceived',
   DirectRequestAccepted: 'DirectRequestAccepted',
   UserProfileChanged: 'UserProfileChanged',
+  RoomMemberJoined: 'RoomMemberJoined',
+  AddedToRoom: 'AddedToRoom',
 } as const
 
 /** The client hides a typing indicator after this long without a new `UserTyping`. */
@@ -79,6 +81,21 @@ export interface DirectRequestAcceptedEvent {
   peer: UserSummary
 }
 
+/**
+ * Someone became a member of a room, by joining or by invitation. Sent once, to the connections that have the
+ * room open. Not the same as `UserJoined`, which only says that a connection opened the room's group.
+ */
+export interface RoomMemberJoinedEvent {
+  roomId: ConversationId
+  user: UserSummary
+  joinedAt: string
+}
+
+/** Sent to the invitee's own connections when a member of a room invites them. */
+export interface AddedToRoomEvent {
+  room: Room
+}
+
 /** Payload of each server event the client subscribes to. */
 export interface HubEventMap {
   MessageReceived: Message
@@ -90,6 +107,8 @@ export interface HubEventMap {
   DirectRequestAccepted: DirectRequestAcceptedEvent
   /** A user with a shared conversation, or the caller in another tab, changed their name or avatar. */
   UserProfileChanged: UserSummary
+  RoomMemberJoined: RoomMemberJoinedEvent
+  AddedToRoom: AddedToRoomEvent
 }
 
 export type HubEventName = keyof HubEventMap

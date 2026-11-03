@@ -39,6 +39,8 @@ Text is trimmed. Empty text or text longer than 2000 characters is `invalid_mess
 | `PresenceChanged` | `{ userId, isOnline }` |
 | `DirectRequestReceived` | `{ conversationId, from: UserSummary, text, createdAt }`. Sent only to the recipient (their `user:` group) when a request is created or reopened. |
 | `DirectRequestAccepted` | `{ conversationId, peer: UserSummary }`. Sent only to the initiator (their `user:` group) when the recipient accepts. A decline sends no event. |
+| `RoomMemberJoined` | `{ roomId, user: UserSummary, joinedAt }`. Someone became a member of a room, by `POST /api/rooms/{id}/join` or by an invitation. Sent once, to the room group, so only the connections that have the room open (called `JoinRoom`) get it, the inviter included. The joiner's own connections are not in the group yet and get nothing. A join of someone who is a member already sends nothing. Not the same as `UserJoined`, which only says that a connection opened the group. |
+| `AddedToRoom` | `{ room: Room }` with the room as `GET /api/rooms` lists it (`kind`, `id`, `name`, `description`, `memberCount`, `lastMessage`). Sent to the invitee's `user:` group (every tab) when a member invites them. The client lists the room at once, loads the presence snapshot again, and calls `JoinRoom` when the user opens the room. |
 
 There is no "stopped typing" event. The client hides the typing hint after its own timeout.
 
@@ -74,6 +76,14 @@ There is no "stopped typing" event. The client hides the typing hint after its o
 { "conversationId": "3f2a1b4c-5d6e-4f70-8192-a3b4c5d6e7f8", "peer": { "id": "7a659d8e-7310-4214-9547-3abd23778a18", "displayName": "Anna", "avatarUrl": null } }
 ```
 
+```json
+{ "roomId": "3f2a1b4c-5d6e-4f70-8192-a3b4c5d6e7f8", "user": { "id": "7a659d8e-7310-4214-9547-3abd23778a18", "displayName": "Anna", "avatarUrl": null }, "joinedAt": "2026-11-02T10:15:30.123+00:00" }
+```
+
+```json
+{ "room": { "kind": "room", "id": "3f2a1b4c-5d6e-4f70-8192-a3b4c5d6e7f8", "name": "Dev", "description": "Code", "memberCount": 3, "lastMessage": null } }
+```
+
 `UserSummary` never carries an email. Email exists only in `GET /auth/me`.
 
 ### `UserProfileChanged`
@@ -98,12 +108,20 @@ reload looks like a bug in a chat, and the event costs one group send.
 - `PresenceChanged(false)` is sent only after the last connection has been closed for 5 s (the offline grace). A reconnect inside that window produces no event at all. The snapshot counts a user inside the grace window as online.
 - Snapshot: `GET /api/presence/online` returns `UserId[]`, only the online peers that share a conversation with the caller. Use it after load or reconnect.
 - Only accepted direct conversations count as shared. A pending request does not make two users peers for presence.
+- A new room member and the old ones become peers at that moment, and the snapshot they loaded earlier does not list each other. So after a join or an invitation the server sends `PresenceChanged(newMember, isOnline)` to the personal group of every other member (the right value in both directions, also when it clears a stale "online"), and the new member reloads the snapshot (the client does it after a REST join and on `AddedToRoom`). Later changes of the new member reach the old ones through the usual `PresenceChanged`, because peers are read from the database each time.
 
 ## Groups (server side only)
 
 - `room:{id}` for rooms, `dm:{id}` for direct conversations, `user:{userId}` for presence. Every connection joins its `user:` group on connect.
 - Leaving a room over REST (`POST /api/rooms/{id}/leave`) also removes the user's open connections from its group and forgets the room on each of them. The remaining members get `UserLeft`; the leaver does not.
 - After a REST join the client must call `JoinRoom` again on the same connection (no reconnect needed). `JoinRoom` is idempotent, and it joins the group again only because the earlier leave forgot the room.
+
+## Room members and invitations
+
+- **Member list:** `GET /api/rooms/{id}/members` answers `200` with `[{ user: UserSummary, role: "owner" | "member" }]`, the owner first, then by name, at most 500. Only a member may ask: anyone else, and a missing room, get the same `404 not_found`. It carries the current name and avatar and never an email. Presence is not in the list: the client combines it with the presence snapshot.
+- **Invite:** `POST /api/rooms/{id}/invitations` with `{ "userId" }` answers `204`; the invitee is a member at once, with no confirmation. Rules, all on the server: the caller must be a member of the room; the invitee must be a chat partner of the caller (an **accepted** direct conversation; a waiting or declined request does not count). Everything else is `404 not_found`, the same answer for an unknown id, a stranger, the caller themselves, a room that is not theirs and a request that was never accepted, so the route cannot be used to probe users or rooms. A user who is in the room already gets `409 already_member` and nothing changes (no duplicate row). The route is rate limited (`RoomInvitePerMinute`), refused invitations included.
+- **Events after a stored change:** the room group gets `RoomMemberJoined`, the invitee gets `AddedToRoom`, every other member's personal group gets the newcomer's `PresenceChanged`. A refused or repeated request sends nothing.
+- **"Joined" in the UI:** the notice is a client-side line shown among the messages by time. It is not a message: it is not stored, not in the history pages, and does not move a cursor.
 
 ## Direct messages by consent
 
@@ -136,6 +154,7 @@ REST errors carry the same codes in ProblemDetails `code`.
 | `dm_incoming_request_exists` | (409) The target user has an unanswered request to the caller. Answer it first (accept or decline). |
 | `dm_request_limit_reached` | (409) The caller already has 20 outgoing pending requests. |
 | `dm_not_accepted` | (409) A message to a pending direct conversation, sent by its initiator. |
+| `already_member` | (409) The invited user is in the room already. |
 
 ## Limits
 
@@ -159,6 +178,7 @@ Per user, fixed window of one minute. The key is the session user; an anonymous 
 | `GET /api/users/search` | 30 | `UserSearchPerMinute` |
 | `GET /api/rooms/discover` | 30 | `RoomDiscoverPerMinute` |
 | `POST /api/rooms/{id}/join` and `/leave` | 30, shared | `RoomMembershipPerMinute` |
+| `POST /api/rooms/{id}/invitations` | 20 | `RoomInvitePerMinute` |
 | `POST /api/direct-conversations` | 10 | `DirectConversationCreatePerMinute` |
 | `POST /api/rooms` | 10 | `RoomCreatePerMinute` |
 | `PUT /api/me/display-name`, `PUT` and `DELETE /api/me/avatar` | 10, shared | `ProfileUpdatePerMinute` |

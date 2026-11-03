@@ -1,14 +1,22 @@
 import type { ConversationId, Message, PresenceChange, UserId, UserSummary } from '@/api'
-import { historyOf, isActiveMember, sharedMockStore } from '@/api/mock/mockHistories'
+import {
+  historyOf,
+  isActiveMember,
+  sharedMockStore,
+  subscribeMockServerEvents,
+  type MockServerEvent,
+} from '@/api/mock/mockHistories'
 
 import { HubCallError, type ChatHub, type Unsubscribe } from './chatHub'
 import {
+  type AddedToRoomEvent,
   type ConnectionState,
   type ConversationMemberEvent,
   type DirectRequestAcceptedEvent,
   type DirectRequestReceivedEvent,
   type HubEventMap,
   type HubEventName,
+  type RoomMemberJoinedEvent,
   type UserTypingEvent,
 } from './hubContract'
 
@@ -41,9 +49,12 @@ export class FakeChatHub implements ChatHub {
     DirectRequestReceived: new Set(),
     DirectRequestAccepted: new Set(),
     UserProfileChanged: new Set(),
+    RoomMemberJoined: new Set(),
+    AddedToRoom: new Set(),
   }
   private readonly typingSent: ConversationId[] = []
   private readonly queuedStartFailures: HubCallError[] = []
+  private stopServerEvents: (() => void) | null = null
   private startCount = 0
   private sentCounter = 0
 
@@ -58,10 +69,13 @@ export class FakeChatHub implements ChatHub {
       throw failure
     }
     this.setState('connected')
+    this.followMockServer()
   }
 
   /** Our own stop: no `onClosed`, same as the SignalR client. */
   async stop(): Promise<void> {
+    this.stopServerEvents?.()
+    this.stopServerEvents = null
     this.joined.clear()
     this.setState('disconnected')
   }
@@ -154,6 +168,14 @@ export class FakeChatHub implements ChatHub {
     this.emit('UserProfileChanged', user)
   }
 
+  emitRoomMemberJoined(event: RoomMemberJoinedEvent): void {
+    this.emit('RoomMemberJoined', event)
+  }
+
+  emitAddedToRoom(event: AddedToRoomEvent): void {
+    this.emit('AddedToRoom', event)
+  }
+
   /** Drops the connection and brings it back, as an automatic reconnect does. */
   simulateReconnect(): void {
     this.setState('reconnecting')
@@ -186,6 +208,22 @@ export class FakeChatHub implements ChatHub {
   /** Test inspection: every `Typing` call the client made, in order. */
   typingCalls(): readonly ConversationId[] {
     return this.typingSent
+  }
+
+  /**
+   * Plays the server's part for changes the mock REST API makes: the room's "joined" notice reaches this
+   * connection only when it has the room open, as the room's group does on the server.
+   */
+  private followMockServer(): void {
+    this.stopServerEvents ??= subscribeMockServerEvents(sharedMockStore(), (event) =>
+      this.deliver(event),
+    )
+  }
+
+  private deliver(event: MockServerEvent): void {
+    if (event.type === 'RoomMemberJoined' && this.joined.has(event.event.roomId)) {
+      this.emitRoomMemberJoined(event.event)
+    }
   }
 
   private emit<Name extends HubEventName>(event: Name, payload: HubEventMap[Name]): void {

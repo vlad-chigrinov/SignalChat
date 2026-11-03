@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import InviteToRoomDialog from '@/components/InviteToRoomDialog.vue'
 import LeaveRoomButton from '@/components/LeaveRoomButton.vue'
 import MessageComposer from '@/components/MessageComposer.vue'
 import MessageList from '@/components/MessageList.vue'
 import PresenceDot from '@/components/PresenceDot.vue'
+import RoomMembersDialog from '@/components/RoomMembersDialog.vue'
 import TypingIndicator from '@/components/TypingIndicator.vue'
 import { getRealtimeService } from '@/realtime'
 import { ROUTE_NAMES } from '@/router/routes'
@@ -13,9 +15,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useConnectionStore } from '@/stores/connection'
 import { useMessagesStore } from '@/stores/messages'
 import { usePresenceStore } from '@/stores/presence'
+import { useRoomNoticesStore } from '@/stores/roomNotices'
 import { useRoomsStore } from '@/stores/rooms'
 import { useTypingStore } from '@/stores/typing'
-import type { UserId } from '@/api'
+import type { ConversationId, UserId } from '@/api'
 
 const NAME_OF_UNKNOWN_AUTHOR = 'Кто-то'
 
@@ -24,6 +27,7 @@ const props = defineProps<{ id: string }>()
 const auth = useAuthStore()
 const rooms = useRoomsStore()
 const messages = useMessagesStore()
+const roomNotices = useRoomNoticesStore()
 const presence = usePresenceStore()
 const typing = useTypingStore()
 const connection = useConnectionStore()
@@ -101,6 +105,15 @@ async function leftRoom(roomId: string): Promise<void> {
 }
 
 const notifyTyping = () => realtime.notifyTyping(props.id)
+
+const isMembersOpen = ref(false)
+const isInviteOpen = ref(false)
+
+/** "Написать" in the member list: the chat opens (or the new request is shown as pending) and the dialog goes. */
+async function openDirect(conversationId: ConversationId): Promise<void> {
+  isMembersOpen.value = false
+  await router.push({ name: ROUTE_NAMES.chat, params: { id: conversationId } })
+}
 </script>
 
 <template>
@@ -119,7 +132,15 @@ const notifyTyping = () => realtime.notifyTyping(props.id)
           {{ subtitle }}
         </p>
       </div>
-      <LeaveRoomButton v-if="conversation?.kind === 'room'" :room-id="id" @left="leftRoom" />
+      <div v-if="conversation?.kind === 'room'" class="room-actions">
+        <button type="button" class="button secondary" @click="isMembersOpen = true">
+          Участники
+        </button>
+        <button type="button" class="button secondary" @click="isInviteOpen = true">
+          Пригласить
+        </button>
+        <LeaveRoomButton :room-id="id" @left="leftRoom" />
+      </div>
     </header>
 
     <p v-if="isUnknown" class="state" role="alert">Чат не найден или у вас нет к нему доступа.</p>
@@ -141,6 +162,7 @@ const notifyTyping = () => realtime.notifyTyping(props.id)
         :has-more="history.nextCursor !== null"
         :is-loading="history.isLoading"
         :current-user-id="auth.user?.id ?? null"
+        :notices="roomNotices.noticesOf(id)"
         @load-older="messages.loadOlder(id)"
       />
       <TypingIndicator :text="typingText" />
@@ -151,6 +173,14 @@ const notifyTyping = () => realtime.notifyTyping(props.id)
         @typing="notifyTyping"
       />
     </template>
+
+    <RoomMembersDialog
+      v-if="isMembersOpen"
+      :room-id="id"
+      @close="isMembersOpen = false"
+      @opened="openDirect"
+    />
+    <InviteToRoomDialog v-if="isInviteOpen" :room-id="id" @close="isInviteOpen = false" />
   </main>
 </template>
 
@@ -168,6 +198,14 @@ const notifyTyping = () => realtime.notifyTyping(props.id)
   align-items: center;
   padding: 8px 16px;
   border-bottom: 1px solid var(--color-border);
+}
+
+.room-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  margin-left: auto;
 }
 
 .back {

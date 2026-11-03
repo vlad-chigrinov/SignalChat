@@ -56,6 +56,14 @@ export interface IncomingDirectRequest {
 
 export type Conversation = Room | DirectConversation
 
+/** `owner` created the room. The list shows the current public profile of the member, never an email. */
+export type RoomRole = 'owner' | 'member'
+
+export interface RoomMember {
+  user: UserSummary
+  role: RoomRole
+}
+
 export interface Message {
   id: MessageId
   conversationId: ConversationId
@@ -102,6 +110,7 @@ export type ApiErrorCode =
   | 'dm_request_pending'
   | 'dm_incoming_request_exists'
   | 'dm_request_limit_reached'
+  | 'already_member'
   | 'invalid_display_name'
   | 'invalid_avatar'
   | 'avatar_too_large'

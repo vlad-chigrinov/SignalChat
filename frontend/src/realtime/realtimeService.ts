@@ -1,10 +1,12 @@
-import { api, type ConversationId, type Message } from '@/api'
+import { api, type ConversationId, type Message, type Room } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import { useConnectionStore } from '@/stores/connection'
 import { useDirectRequestsStore } from '@/stores/directRequests'
 import { useMessagesStore } from '@/stores/messages'
 import { usePresenceStore } from '@/stores/presence'
 import { applyProfileChange } from '@/stores/profileSync'
+import { useRoomMembersStore } from '@/stores/roomMembers'
+import { useRoomNoticesStore } from '@/stores/roomNotices'
 import { useRoomsStore } from '@/stores/rooms'
 import { useTypingStore } from '@/stores/typing'
 import { normalizeMessageText } from '@/utils/messageText'
@@ -49,6 +51,8 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
   const connection = useConnectionStore()
   const rooms = useRoomsStore()
   const directRequests = useDirectRequestsStore()
+  const roomMembers = useRoomMembersStore()
+  const roomNotices = useRoomNoticesStore()
 
   const openConversationIds = new Set<ConversationId>()
   const lastTypingSentAt = new Map<ConversationId, number>()
@@ -88,6 +92,15 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
   }
 
   /**
+   * An invitation added the user to a room: it is listed at once. Its members are peers from now on, so who is
+   * online is loaded again (the snapshot from before does not list them).
+   */
+  async function handleAddedToRoom(room: Room): Promise<void> {
+    rooms.applyAddedToRoom(room)
+    await presence.loadSnapshot()
+  }
+
+  /**
    * The server closed the connection with no reconnect. The network may simply be gone, so
    * the session is checked: only an answer "not signed in" (401) ends it.
    */
@@ -109,6 +122,11 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
       auth.applyOwnProfile(user)
       applyProfileChange(user)
     }),
+    hub.on('RoomMemberJoined', (event) => {
+      roomNotices.applyMemberJoined(event)
+      roomMembers.applyJoined(event)
+    }),
+    hub.on('AddedToRoom', (event) => void handleAddedToRoom(event.room)),
     hub.onConnectionState((state) => connection.setState(state)),
     hub.onReconnected(() => void restoreAfterReconnect()),
     hub.onClosed(() => void handleServerClose()),
