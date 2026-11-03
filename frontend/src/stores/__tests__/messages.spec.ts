@@ -13,6 +13,7 @@ function message(index: number): Message {
     text: `text ${index}`,
     sentAt: new Date(Date.UTC(2026, 0, 1, 10, index)).toISOString(),
     attachments: [],
+    reactions: [],
   }
 }
 

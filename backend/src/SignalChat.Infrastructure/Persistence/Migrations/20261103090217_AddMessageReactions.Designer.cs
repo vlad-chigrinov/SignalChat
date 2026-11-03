@@ -12,8 +12,8 @@ using SignalChat.Infrastructure.Persistence;
 namespace SignalChat.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SignalChatDbContext))]
-    [Migration("20261103091737_AddMessageAttachments")]
-    partial class AddMessageAttachments
+    [Migration("20261103090217_AddMessageReactions")]
+    partial class AddMessageReactions
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -103,58 +103,25 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("SignalChat.Domain.Chat.MessageAttachment", b =>
+            modelBuilder.Entity("SignalChat.Domain.Chat.MessageReaction", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<int>("Height")
-                        .HasColumnType("integer");
-
                     b.Property<Guid>("MessageId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("OriginalKey")
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Emoji")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
 
-                    b.Property<int>("Position")
-                        .HasColumnType("integer");
+                    b.HasKey("MessageId", "UserId");
 
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("ThumbnailHeight")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ThumbnailKey")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("ThumbnailWidth")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Width")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MessageId", "Position")
-                        .IsUnique();
-
-                    b.ToTable("message_attachments", (string)null);
+                    b.ToTable("message_reactions", (string)null);
                 });
 
             modelBuilder.Entity("SignalChat.Domain.Chat.Room", b =>
@@ -305,10 +272,10 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
-            modelBuilder.Entity("SignalChat.Domain.Chat.MessageAttachment", b =>
+            modelBuilder.Entity("SignalChat.Domain.Chat.MessageReaction", b =>
                 {
                     b.HasOne("SignalChat.Domain.Chat.Message", null)
-                        .WithMany("Attachments")
+                        .WithMany()
                         .HasForeignKey("MessageId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -330,11 +297,6 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SignalChat.Domain.Users.UserAvatar", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("SignalChat.Domain.Chat.Message", b =>
-                {
-                    b.Navigation("Attachments");
                 });
 #pragma warning restore 612, 618
         }

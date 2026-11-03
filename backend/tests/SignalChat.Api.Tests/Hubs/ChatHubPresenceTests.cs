@@ -68,6 +68,9 @@ public sealed class ChatHubPresenceTests
         await HubFixtures.JoinRoomAsync(client, offlineCookie, roomId);
         await using var onlineHub = await HubTestClient.ConnectAsync(factory, onlineCookie);
         await using var strangerHub = await HubTestClient.ConnectAsync(factory, await OutsideOnlineAsync(factory));
+        // StartAsync returns after the handshake, which the server answers before OnConnectedAsync has counted the user.
+        var announcer = factory.Services.GetRequiredService<PresenceAnnouncer>();
+        await Eventually.UntilAsync(() => announcer.IsOnline(onlinePeer.Id), "the server to count the online peer");
 
         var response = await client.SendAsync(ChatHttp.Get("/api/presence/online", callerCookie));
 

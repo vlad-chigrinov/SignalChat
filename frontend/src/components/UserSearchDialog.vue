@@ -5,7 +5,7 @@ import BaseDialog from '@/components/BaseDialog.vue'
 import DirectRequestForm from '@/components/DirectRequestForm.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import type { DirectConversation, UserSummary } from '@/api'
-import { useRoomsStore } from '@/stores/rooms'
+import { useDirectRequestSend } from '@/composables/useDirectRequestSend'
 import { useUserSearchStore } from '@/stores/userSearch'
 import { errorMessage } from '@/utils/errorMessage'
 import { userQueryHint } from '@/utils/userSearch'
@@ -15,13 +15,11 @@ const SEARCH_DEBOUNCE_MS = 300
 
 const emit = defineEmits<{ close: []; opened: [direct: DirectConversation] }>()
 
-const rooms = useRoomsStore()
 const userSearch = useUserSearchStore()
 const query = ref('')
 const hint = ref<string | null>(null)
 const searchError = ref<string | null>(null)
-const isSending = ref(false)
-const sendError = ref<string | null>(null)
+const { isSending, sendError, send, clearError } = useDirectRequestSend()
 /** The user picked from the results; the request text is written for them next. */
 const chosen = ref<UserSummary | null>(null)
 let debounceTimer: ReturnType<typeof setTimeout> | undefined
@@ -51,23 +49,15 @@ onBeforeUnmount(() => {
 })
 
 function choose(user: UserSummary): void {
-  sendError.value = null
+  clearError()
   chosen.value = user
 }
 
 /** An accepted chat opens as it is; a new request opens as pending (the view shows it so). */
 async function sendRequest(text: string): Promise<void> {
   if (chosen.value === null) return
-  sendError.value = null
-  isSending.value = true
-  try {
-    const direct = await rooms.sendDirectRequest(chosen.value.id, text)
-    emit('opened', direct)
-  } catch (error) {
-    sendError.value = errorMessage(error)
-  } finally {
-    isSending.value = false
-  }
+  const direct = await send(chosen.value.id, text)
+  if (direct) emit('opened', direct)
 }
 </script>
 

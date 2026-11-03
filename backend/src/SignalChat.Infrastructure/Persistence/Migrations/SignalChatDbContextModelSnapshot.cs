@@ -154,6 +154,27 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                     b.ToTable("message_attachments", (string)null);
                 });
 
+            modelBuilder.Entity("SignalChat.Domain.Chat.MessageReaction", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("MessageId", "UserId");
+
+                    b.ToTable("message_reactions", (string)null);
+                });
+
             modelBuilder.Entity("SignalChat.Domain.Chat.Room", b =>
                 {
                     b.Property<Guid>("Id")
@@ -306,6 +327,15 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("SignalChat.Domain.Chat.Message", null)
                         .WithMany("Attachments")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SignalChat.Domain.Chat.MessageReaction", b =>
+                {
+                    b.HasOne("SignalChat.Domain.Chat.Message", null)
+                        .WithMany()
                         .HasForeignKey("MessageId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

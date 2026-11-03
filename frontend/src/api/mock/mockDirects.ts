@@ -100,6 +100,7 @@ export function sendDirectRequest(
     text,
     sentAt: new Date().toISOString(),
     attachments: [],
+    reactions: [],
   })
   return toDirect(store, direct, userId)
 }

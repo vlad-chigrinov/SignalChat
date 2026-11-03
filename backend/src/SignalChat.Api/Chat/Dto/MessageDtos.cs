@@ -17,14 +17,19 @@ public sealed record AttachmentDto(
     string Url,
     string ThumbnailUrl);
 
-/// <summary>A message. <see cref="Attachments"/> is empty for a text and has 1..9 photos for a photo message (the text is then its caption).</summary>
+/// <summary>
+/// A message. <see cref="Attachments"/> is empty for a text and has 1..9 photos for a photo message (the text is then its
+/// caption). <see cref="Reactions"/> are counts per emoji with the viewer's own marked; a message that was just written
+/// (the live event) has none.
+/// </summary>
 public sealed record MessageDto(
     Guid Id,
     Guid ConversationId,
     UserSummaryDto Author,
     string Text,
     DateTimeOffset SentAt,
-    IReadOnlyList<AttachmentDto> Attachments);
+    IReadOnlyList<AttachmentDto> Attachments,
+    IReadOnlyList<ReactionDto> Reactions);
 
 /// <summary>One history page, oldest first. <see cref="NextCursor"/> is null on the last page.</summary>
 public sealed record MessagePageDto(IReadOnlyList<MessageDto> Items, string? NextCursor);

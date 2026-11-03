@@ -29,13 +29,15 @@ and statuses). Change the backend, this file, the types and the mock together.
 
 ## Rooms
 
-| Method | Path                                | Answer                                                                                                                                                                                                                            |
-| ------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/rooms`                        | 200 `Room[]`: the rooms the caller is a member of                                                                                                                                                                                 |
-| GET    | `/api/rooms/discover?query=&limit=` | 200 `Room[]`: rooms the caller is NOT a member of. `lastMessage` is always null. `limit` ≤ 50 (client cap).                                                                                                                       |
-| POST   | `/api/rooms`                        | Body `{ name, description }`. 201 `Room`. 400 `invalid_room_name` (name 3..80 after trim) or `invalid_room_description` (≤ 300). 409 `room_name_taken` (case-insensitive) or `room_limit_reached` (20 rooms owned by the caller). |
-| POST   | `/api/rooms/{id}/join`              | 204. Idempotent. 404 `not_found`.                                                                                                                                                                                                 |
-| POST   | `/api/rooms/{id}/leave`             | 204. 404 `not_found` when not a member. 409 `owner_cannot_leave` while the owner has other members. The last member leaving deletes the room.                                                                                     |
+| Method | Path                                | Answer                                                                                                                                                                                                                                                        |
+| ------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/rooms`                        | 200 `Room[]`: the rooms the caller is a member of                                                                                                                                                                                                             |
+| GET    | `/api/rooms/discover?query=&limit=` | 200 `Room[]`: rooms the caller is NOT a member of. `lastMessage` is always null. `limit` ≤ 50 (client cap).                                                                                                                                                   |
+| POST   | `/api/rooms`                        | Body `{ name, description }`. 201 `Room`. 400 `invalid_room_name` (name 3..80 after trim) or `invalid_room_description` (≤ 300). 409 `room_name_taken` (case-insensitive) or `room_limit_reached` (20 rooms owned by the caller).                             |
+| POST   | `/api/rooms/{id}/join`              | 204. Idempotent. 404 `not_found`.                                                                                                                                                                                                                             |
+| GET    | `/api/rooms/{id}/members`           | 200 `RoomMember[]`: `{ user: UserSummary, role: 'owner' \| 'member' }`, the owner first, at most 500. Members only: 404 `not_found` for anyone else. No email.                                                                                                |
+| POST   | `/api/rooms/{id}/invitations`       | Body `{ userId }`. 204: a member adds a chat partner (an accepted direct conversation), with no confirmation. 404 `not_found` for a caller who is not in the room, an unknown user, and a user without an accepted chat (all the same). 409 `already_member`. |
+| POST   | `/api/rooms/{id}/leave`             | 204. 404 `not_found` when not a member. 409 `owner_cannot_leave` while the owner has other members. The last member leaving deletes the room.                                                                                                                 |
 
 ## Direct conversations
 
@@ -112,6 +114,26 @@ one `files` part per photo, 1..9, at most 12 MiB each and 48 MiB together. The b
 - `GET /api/attachments/{id}/original|thumbnail` streams the file for a member only (404 otherwise); add `?download=true` for a
   download under the original file name.
 
+## Reactions
+
+`POST /api/conversations/{id}/messages/{messageId}/reaction`, body `{ "emoji": "👍" }`
+
+One reaction per user and message, held by the server (the key of the table is the pair message + user). The route is a
+choice, and the server decides the move: no reaction yet → added; another emoji → replaced; the same emoji again → removed.
+
+- The emoji must be one of the fixed list: 👍 ❤️ 😂 😮 😢 🎉 (`ReactionCatalog` in the backend domain, mirrored by
+  `src/api/reactionCatalog.ts`). Anything else is 400 `invalid_reaction`; nothing is stored.
+- The caller must be a room member or a side of an accepted direct conversation, and the message must belong to that
+  conversation and not be deleted: otherwise 404 `not_found` (a non-member, a missing id and a foreign message look the same).
+  The writer of a pending request gets 409 `dm_not_accepted`; its recipient gets 404 (as for the history).
+- 200 `{ messageId, reactions: Reaction[] }` — the reactions of the message as the caller sees them.
+- Limited to 60 per user per minute: 429 `rate_limited` with `Retry-After`.
+
+`Reaction` is `{ emoji, count, reactedByMe }`: how many people chose the emoji and whether the caller is one of them. It
+never says who the others are. Messages carry `reactions: Reaction[]` (catalog order, empty when none) in the history and in
+the live `MessageReceived`. Live changes come through the hub events `ReactionsChanged` and `MyReactionChanged` (see
+`docs/realtime-hub.md`).
+
 ## Presence (expected, owned by #6)
 
 `GET /api/presence/online` → 200 `UserId[]`: only the peers who share a room or a direct
@@ -139,6 +161,10 @@ treats a failure as "everyone offline". Live changes come through SignalR `Prese
 | `invalid_avatar`             | The upload is not a JPEG, PNG, GIF or WebP, is damaged, or is over 4096 px        |
 | `avatar_too_large`           | The upload is over 2 MiB (HTTP 413)                                               |
 | `dm_request_limit_reached`   | The caller has 20 requests waiting for an answer                                  |
+| `invalid_reaction`           | The reaction is not one of the allowed emoji                                      |
+| `dm_not_accepted`            | The writer of a pending request cannot react (REST); the hub uses it for sending  |
+| `rate_limited`               | Too many requests of a limited route (HTTP 429, with `Retry-After`)               |
+| `already_member`             | The invited user is in the room already (HTTP 409)                                |
 | `invalid_attachments`        | A photo message without photos, with more than 9, or not a well-formed upload     |
 | `invalid_image`              | A photo is not a JPEG, PNG, GIF or WebP, is damaged, or is beyond the pixel limit |
 | `attachment_too_large`       | A photo is over 12 MiB or the photos together are over 48 MiB (HTTP 413)          |

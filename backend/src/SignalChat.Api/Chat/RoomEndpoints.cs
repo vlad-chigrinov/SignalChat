@@ -57,15 +57,21 @@ public static class RoomEndpoints
         return Results.Json(ChatMapping.ToDto(room), statusCode: StatusCodes.Status201Created);
     }
 
+    /// <summary>Idempotent. Only a join that really created the membership is announced to the room.</summary>
     private static async Task<IResult> JoinAsync(
-        ClaimsPrincipal user, Guid id, IRoomService rooms, CancellationToken cancellationToken)
+        ClaimsPrincipal user, Guid id, IRoomService rooms, RoomMembershipNotifier notifier,
+        CancellationToken cancellationToken)
     {
         if (!SessionPrincipal.TryGetUserId(user, out var userId))
         {
             return Results.Unauthorized();
         }
 
-        await rooms.JoinAsync(userId, id, cancellationToken);
+        var added = await rooms.JoinAsync(userId, id, cancellationToken);
+        if (added is not null)
+        {
+            await notifier.MemberJoinedAsync(id, added, cancellationToken);
+        }
         return Results.NoContent();
     }
 

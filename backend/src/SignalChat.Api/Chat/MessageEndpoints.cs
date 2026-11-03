@@ -33,7 +33,7 @@ public static class MessageEndpoints
 
         var pageSize = Pagination.Clamp(limit, ChatPaging.DefaultPageSize, ChatPaging.MaxPageSize);
         var cursor = ParseCursor(before);
-        var page = await messages.GetPageAsync(conversation, cursor, pageSize, cancellationToken);
+        var page = await messages.GetPageAsync(userId, conversation, cursor, pageSize, cancellationToken);
         return Results.Ok(ChatMapping.ToDto(page));
     }
 

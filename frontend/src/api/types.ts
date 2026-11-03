@@ -75,6 +75,30 @@ export interface Attachment {
   thumbnailUrl: string
 }
 
+/**
+ * One emoji under a message: how many people chose it, and whether the caller is one of them.
+ * Never says who the others are.
+ */
+export interface Reaction {
+  emoji: string
+  count: number
+  reactedByMe: boolean
+}
+
+/** How many people chose an emoji, as the live event carries it (the same for every member). */
+export interface ReactionCount {
+  emoji: string
+  count: number
+}
+
+/** `owner` created the room. The list shows the current public profile of the member, never an email. */
+export type RoomRole = 'owner' | 'member'
+
+export interface RoomMember {
+  user: UserSummary
+  role: RoomRole
+}
+
 export interface Message {
   id: MessageId
   conversationId: ConversationId
@@ -84,6 +108,8 @@ export interface Message {
   sentAt: string
   /** Empty for a text message; 1..9 photos otherwise. */
   attachments: Attachment[]
+  /** Counts per emoji in catalog order; empty when nobody reacted. */
+  reactions: Reaction[]
 }
 
 /** One page of history. `items` are chronological (oldest first). */
@@ -124,6 +150,7 @@ export type ApiErrorCode =
   | 'dm_request_pending'
   | 'dm_incoming_request_exists'
   | 'dm_request_limit_reached'
+  | 'already_member'
   | 'invalid_display_name'
   | 'invalid_avatar'
   | 'avatar_too_large'
@@ -131,6 +158,9 @@ export type ApiErrorCode =
   | 'invalid_image'
   | 'attachment_too_large'
   | 'storage_unavailable'
+  | 'invalid_reaction'
+  | 'dm_not_accepted'
+  | 'rate_limited'
 
 export interface CreateRoomInput {
   name: string

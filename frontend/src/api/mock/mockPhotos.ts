@@ -98,6 +98,7 @@ export async function sendPhotoMessage(
     text,
     sentAt: new Date().toISOString(),
     attachments,
+    reactions: [],
   }
   historyOf(store, conversationId).push(message)
   countUpload()

@@ -3,9 +3,12 @@ import type {
   CurrentUser,
   Message,
   MessagePreview,
+  MessageId,
   UserId,
   UserSummary,
 } from '../types'
+
+import type { RoomMemberJoinedEvent } from '../../realtime/hubContract'
 
 import { createSeedStore } from './mockData'
 import { mockError } from './mockErrors'
@@ -30,6 +33,11 @@ export interface MockDirect {
   status: MockDirectStatus
 }
 
+/** What the server would push to the connections that have a room open. The fake hub turns these into hub events. */
+export type MockServerEvent = { type: 'RoomMemberJoined'; event: RoomMemberJoinedEvent }
+
+export type MockServerEventListener = (event: MockServerEvent) => void
+
 /**
  * The whole mock backend. The mock REST API and the fake hub share ONE instance, so a message
  * sent over the hub is in the history, and a joined room is in the room list.
@@ -41,7 +49,11 @@ export interface MockStore {
   rooms: Map<ConversationId, MockRoom>
   directs: Map<ConversationId, MockDirect>
   histories: Map<ConversationId, Message[]>
+  /** What each user chose per message: one emoji per user. The messages themselves carry no reactions here. */
+  reactions: Map<MessageId, Map<UserId, string>>
   nextId: number
+  /** Subscribers of the server pushes; the fake hub is the one in practice. */
+  serverEventListeners: Set<MockServerEventListener>
 }
 
 let shared: MockStore | null = null
@@ -125,4 +137,31 @@ export function userSummaryOf(store: MockStore, userId: UserId): UserSummary | u
     return { id, displayName, avatarUrl }
   }
   return store.directory.find((user) => user.id === userId)
+}
+
+/** Listens to what the mock server pushes. Returns the function that stops listening. */
+export function subscribeMockServerEvents(
+  store: MockStore,
+  listener: MockServerEventListener,
+): () => void {
+  store.serverEventListeners.add(listener)
+  return () => store.serverEventListeners.delete(listener)
+}
+
+export function emitMockServerEvent(store: MockStore, event: MockServerEvent): void {
+  store.serverEventListeners.forEach((listener) => listener(event))
+}
+
+/** A user became a member of a room: the room's open views are told, as the server does. */
+export function announceRoomMemberJoined(
+  store: MockStore,
+  roomId: ConversationId,
+  userId: UserId,
+): void {
+  const user = userSummaryOf(store, userId)
+  if (!user) return
+  emitMockServerEvent(store, {
+    type: 'RoomMemberJoined',
+    event: { roomId, user: { ...user }, joinedAt: new Date().toISOString() },
+  })
 }

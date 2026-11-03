@@ -15,6 +15,8 @@ import {
 import { DISCOVER_MAX_LIMIT } from '@/api/limits'
 import { errorMessage } from '@/utils/errorMessage'
 
+import { usePresenceStore } from './presence'
+
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 function byLatestActivity(left: Conversation, right: Conversation): number {
@@ -87,11 +89,30 @@ export const useRoomsStore = defineStore('rooms', () => {
     return room
   }
 
-  /** Joins a discovered room. The list is reloaded so the member count matches the server. */
+  /**
+   * Joins a discovered room. The list is reloaded so the member count matches the server, and who is online is
+   * loaded again: the room's members are peers from now on, and the earlier snapshot does not list them.
+   */
   async function joinRoom(roomId: ConversationId): Promise<void> {
     await api.joinRoom(roomId)
     discovered.value = discovered.value.filter((room) => room.id !== roomId)
-    await load({ force: true })
+    await Promise.all([load({ force: true }), usePresenceStore().loadSnapshot()])
+  }
+
+  /** The user was added to a room by an invitation (live): it is listed at once, or replaces the listed one. */
+  function applyAddedToRoom(room: Room): void {
+    rooms.value = [...rooms.value.filter((item) => item.id !== room.id), room]
+  }
+
+  /** One more member in a listed room (live). */
+  function bumpMemberCount(roomId: ConversationId): void {
+    const room = rooms.value.find((item) => item.id === roomId)
+    if (room) room.memberCount += 1
+  }
+
+  function setMemberCount(roomId: ConversationId, memberCount: number): void {
+    const room = rooms.value.find((item) => item.id === roomId)
+    if (room) room.memberCount = memberCount
   }
 
   /**
@@ -172,6 +193,9 @@ export const useRoomsStore = defineStore('rooms', () => {
     discover,
     createRoom,
     joinRoom,
+    applyAddedToRoom,
+    bumpMemberCount,
+    setMemberCount,
     leaveRoom,
     forgetRoom,
     upsertDirect,

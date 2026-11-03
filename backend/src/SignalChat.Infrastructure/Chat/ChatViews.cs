@@ -16,6 +16,12 @@ public sealed record RoomSummary(
     DateTimeOffset CreatedAt,
     LastMessageView? LastMessage);
 
+/// <summary>A member of a room as the member list shows them: the current public profile and the role.</summary>
+public sealed record RoomMemberView(ChatUser User, RoomRole Role);
+
+/// <summary>A user who has just become a member of a room, on their own or by invitation.</summary>
+public sealed record RoomMemberAdded(ChatUser User, DateTimeOffset JoinedAt);
+
 /// <summary>A direct conversation as its caller sees it. <see cref="Status"/> is the stored state, not the display name.</summary>
 public sealed record DirectConversationSummary(
     Guid Id,
@@ -70,6 +76,8 @@ public sealed record MessageView(
 {
     /// <summary>The photos in display order; empty for a text message.</summary>
     public IReadOnlyList<AttachmentView> Attachments { get; init; } = [];
+    /// <summary>Counts per emoji as the viewer sees them; empty for a message that was just written.</summary>
+    public IReadOnlyList<ReactionView> Reactions { get; init; } = [];
 }
 
 /// <summary>One history page, oldest message first. <see cref="NextCursor"/> is null on the last page.</summary>

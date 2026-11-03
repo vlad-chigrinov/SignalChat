@@ -26,8 +26,10 @@ public static class ChatSignalRRegistration
         services.AddSingleton<PresenceNotifier>();
         services.AddSingleton<PresenceAnnouncer>();
         services.AddSingleton<DirectRequestNotifier>();
+        services.AddSingleton<ReactionNotifier>();
         services.AddScoped<ProfileChangeNotifier>();
         services.AddScoped<HubGroupMembership>();
+        services.AddScoped<RoomMembershipNotifier>();
         services.AddScoped<HubSessionGuard>();
         services.AddScoped<ChatMessaging>();
         services.AddScoped<ConversationJoin>();

@@ -22,7 +22,7 @@ public sealed class ChatServiceTests(SignalChatApiFactory factory) : IClassFixtu
             store.AppendAsync(outsider.Id, roomId, "let me in", CancellationToken.None));
 
         Assert.Equal("not_found", error.Code);
-        var page = await store.GetPageAsync(new ConversationRef(ConversationKind.Room, roomId), null, 10, CancellationToken.None);
+        var page = await store.GetPageAsync(owner.Id, new ConversationRef(ConversationKind.Room, roomId), null, 10, CancellationToken.None);
         Assert.Empty(page.Items);
     }
 

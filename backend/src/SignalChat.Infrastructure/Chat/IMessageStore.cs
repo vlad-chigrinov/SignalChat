@@ -12,7 +12,9 @@ public interface IMessageStore
 
     /// <summary>
     /// One page of visible history, newest page first in the query, returned oldest first. The caller
-    /// must have checked membership (see <see cref="IConversationAccess"/>).
+    /// must have checked membership (see <see cref="IConversationAccess"/>). Each message carries its reactions
+    /// as counts, with the ones of <paramref name="viewerId"/> marked.
     /// </summary>
-    Task<MessagePage> GetPageAsync(ConversationRef conversation, MessageCursor? before, int limit, CancellationToken cancellationToken);
+    Task<MessagePage> GetPageAsync(
+        Guid viewerId, ConversationRef conversation, MessageCursor? before, int limit, CancellationToken cancellationToken);
 }

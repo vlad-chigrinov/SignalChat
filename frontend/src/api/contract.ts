@@ -8,7 +8,10 @@ import type {
   IncomingDirectRequest,
   LoginOutcome,
   Message,
+  MessageId,
+  Reaction,
   Room,
+  RoomMember,
   UserId,
   UserSummary,
 } from './types'
@@ -28,6 +31,13 @@ export interface ChatApi {
   /** Idempotent. */
   joinRoom(roomId: ConversationId): Promise<void>
   leaveRoom(roomId: ConversationId): Promise<void>
+  /** Members of a room the caller is in (the owner first). `not_found` for anyone else. */
+  listRoomMembers(roomId: ConversationId): Promise<RoomMember[]>
+  /**
+   * Adds a chat partner of the caller to the room, with no confirmation. Rejects with `not_found` (the caller is
+   * not in the room, or has no accepted chat with the user) and `already_member`.
+   */
+  inviteToRoom(roomId: ConversationId, userId: UserId): Promise<void>
   /** The caller's accepted chats, plus their own pending requests (status `pending`). */
   listDirectConversations(): Promise<DirectConversation[]>
   /**
@@ -53,6 +63,16 @@ export interface ChatApi {
   ): Promise<Message>
   /** History only. Text messages are sent through the realtime hub (C1), photo messages through sendPhotoMessage. */
   getMessages(conversationId: ConversationId, query: HistoryQuery): Promise<CursorPage<Message>>
+  /**
+   * The caller picks a reaction for a message: none yet → added, another → replaced, the same →
+   * removed. Answers with the message's reactions as the caller sees them. Rejects with
+   * `invalid_reaction`, `not_found`, `dm_not_accepted` or `rate_limited`.
+   */
+  chooseReaction(
+    conversationId: ConversationId,
+    messageId: MessageId,
+    emoji: string,
+  ): Promise<Reaction[]>
   getOnlineUserIds(): Promise<UserId[]>
   /** The caller's own name. Rejects with `invalid_display_name`. Answers with the updated profile. */
   changeDisplayName(displayName: string): Promise<CurrentUser>

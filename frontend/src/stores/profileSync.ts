@@ -2,6 +2,8 @@ import type { UserSummary } from '@/api'
 
 import { useDirectRequestsStore } from './directRequests'
 import { useMessagesStore } from './messages'
+import { useRoomMembersStore } from './roomMembers'
+import { useRoomNoticesStore } from './roomNotices'
 import { useRoomsStore } from './rooms'
 import { useUserSearchStore } from './userSearch'
 
@@ -15,4 +17,6 @@ export function applyProfileChange(user: UserSummary): void {
   useDirectRequestsStore().applyProfileChange(user)
   useMessagesStore().applyProfileChange(user)
   useUserSearchStore().applyProfileChange(user)
+  useRoomMembersStore().applyProfileChange(user)
+  useRoomNoticesStore().applyProfileChange(user)
 }

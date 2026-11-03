@@ -41,6 +41,7 @@ describe('auth store profile actions', () => {
       text: 'привет',
       sentAt: '2026-11-02T10:00:00.000Z',
       attachments: [],
+      reactions: [],
     }
     messages.histories['room-1'] = {
       items: [own],

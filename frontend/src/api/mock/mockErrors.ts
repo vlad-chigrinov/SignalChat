@@ -6,6 +6,7 @@ const HTTP_NOT_FOUND = 404
 const HTTP_CONFLICT = 409
 const HTTP_PAYLOAD_TOO_LARGE = 413
 const HTTP_SERVICE_UNAVAILABLE = 503
+const HTTP_TOO_MANY_REQUESTS = 429
 
 /** Same status the real server answers for each stable code (see CONTRACT.md). */
 const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
@@ -23,6 +24,7 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   dm_request_pending: HTTP_CONFLICT,
   dm_incoming_request_exists: HTTP_CONFLICT,
   dm_request_limit_reached: HTTP_CONFLICT,
+  already_member: HTTP_CONFLICT,
   invalid_display_name: HTTP_BAD_REQUEST,
   invalid_avatar: HTTP_BAD_REQUEST,
   avatar_too_large: HTTP_PAYLOAD_TOO_LARGE,
@@ -30,6 +32,9 @@ const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   invalid_image: HTTP_BAD_REQUEST,
   attachment_too_large: HTTP_PAYLOAD_TOO_LARGE,
   storage_unavailable: HTTP_SERVICE_UNAVAILABLE,
+  invalid_reaction: HTTP_BAD_REQUEST,
+  dm_not_accepted: HTTP_CONFLICT,
+  rate_limited: HTTP_TOO_MANY_REQUESTS,
 }
 
 /** The same ApiError the HTTP client raises for this ProblemDetails answer. */

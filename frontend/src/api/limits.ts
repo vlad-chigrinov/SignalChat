@@ -1,6 +1,8 @@
 /** Upper bounds the client applies before it calls the server, so a request never exceeds them. */
 export const DISCOVER_MAX_LIMIT = 50
 export const USER_SEARCH_MAX_LIMIT = 20
+/** The server cuts a room's member list here (ChatLimits.RoomMembersMaxCount). */
+export const ROOM_MEMBERS_MAX_COUNT = 500
 export const HISTORY_DEFAULT_LIMIT = 30
 export const HISTORY_MAX_LIMIT = 100
 

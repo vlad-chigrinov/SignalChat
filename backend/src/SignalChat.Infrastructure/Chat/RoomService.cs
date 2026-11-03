@@ -42,10 +42,19 @@ public sealed class RoomService(SignalChatDbContext dbContext, TimeProvider time
         return new RoomSummary(room.Id, room.Name, room.Description, 1, room.CreatedAt, null);
     }
 
-    public async Task<IReadOnlyList<RoomSummary>> ListMineAsync(Guid userId, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<RoomSummary>> ListMineAsync(Guid userId, CancellationToken cancellationToken) =>
+        SummarizeMemberRoomsAsync(userId, roomId: null, cancellationToken);
+
+    public async Task<RoomSummary?> FindMineAsync(Guid userId, Guid roomId, CancellationToken cancellationToken) =>
+        (await SummarizeMemberRoomsAsync(userId, roomId, cancellationToken)).SingleOrDefault();
+
+    /// <summary>The user's rooms (or just one of them), most recently active first.</summary>
+    private async Task<IReadOnlyList<RoomSummary>> SummarizeMemberRoomsAsync(
+        Guid userId, Guid? roomId, CancellationToken cancellationToken)
     {
         var rows = await dbContext.Rooms.AsNoTracking()
-            .Where(room => dbContext.RoomMembers.Any(member => member.RoomId == room.Id && member.UserId == userId))
+            .Where(room => (roomId == null || room.Id == roomId)
+                && dbContext.RoomMembers.Any(member => member.RoomId == room.Id && member.UserId == userId))
             .Select(room => new RoomRow(
                 room.Id,
                 room.Name,
@@ -99,7 +108,7 @@ public sealed class RoomService(SignalChatDbContext dbContext, TimeProvider time
             .ToListAsync(cancellationToken);
     }
 
-    public async Task JoinAsync(Guid userId, Guid roomId, CancellationToken cancellationToken)
+    public async Task<RoomMemberAdded?> JoinAsync(Guid userId, Guid roomId, CancellationToken cancellationToken)
     {
         if (!await dbContext.Rooms.AnyAsync(room => room.Id == roomId, cancellationToken))
         {
@@ -108,23 +117,31 @@ public sealed class RoomService(SignalChatDbContext dbContext, TimeProvider time
 
         if (await IsMemberAsync(roomId, userId, cancellationToken))
         {
-            return;
+            return null;
         }
 
-        dbContext.RoomMembers.Add(RoomMember.Join(roomId, userId, RoomRole.Member, timeProvider.GetUtcNow()));
+        var now = timeProvider.GetUtcNow();
+        dbContext.RoomMembers.Add(RoomMember.Join(roomId, userId, RoomRole.Member, now));
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException)
         {
-            // A concurrent join of the same user already created the membership: that is success.
+            // A concurrent join of the same user already created the membership: that is success, and
+            // the request that created it announces it.
             if (await IsMemberAsync(roomId, userId, cancellationToken))
             {
-                return;
+                return null;
             }
             throw;
         }
+
+        var user = await dbContext.Users.AsNoTracking()
+            .Where(candidate => candidate.Id == userId)
+            .Select(candidate => new ChatUser(candidate.Id, candidate.DisplayName, candidate.AvatarUrl))
+            .SingleAsync(cancellationToken);
+        return new RoomMemberAdded(user, now);
     }
 
     public async Task LeaveAsync(Guid userId, Guid roomId, CancellationToken cancellationToken)

@@ -2,7 +2,13 @@ import { DISCOVER_MAX_LIMIT } from '../limits'
 import type { ConversationId, CreateRoomInput, Room, UserId } from '../types'
 
 import { mockError } from './mockErrors'
-import { type MockRoom, type MockStore, nextMockId, previewOf } from './mockHistories'
+import {
+  type MockRoom,
+  type MockStore,
+  announceRoomMemberJoined,
+  nextMockId,
+  previewOf,
+} from './mockHistories'
 
 const ROOM_NAME_MIN_LENGTH = 3
 const ROOM_NAME_MAX_LENGTH = 80
@@ -75,7 +81,9 @@ export function createRoom(store: MockStore, ownerId: UserId, input: CreateRoomI
 export function joinRoom(store: MockStore, userId: UserId, roomId: ConversationId): void {
   const room = store.rooms.get(roomId)
   if (!room) throw mockError('not_found')
+  if (room.memberIds.has(userId)) return
   room.memberIds.add(userId)
+  announceRoomMemberJoined(store, roomId, userId)
 }
 
 /** The last member leaving deletes the room and its history. */

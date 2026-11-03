@@ -24,6 +24,7 @@ public sealed class SignalChatDbContext(
     public DbSet<Message> Messages => Set<Message>();
 
     public DbSet<MessageAttachment> MessageAttachments => Set<MessageAttachment>();
+    public DbSet<MessageReaction> MessageReactions => Set<MessageReaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,5 +35,6 @@ public sealed class SignalChatDbContext(
         modelBuilder.ApplyConfiguration(new DirectConversationConfiguration());
         modelBuilder.ApplyConfiguration(new MessageConfiguration());
         modelBuilder.ApplyConfiguration(new MessageAttachmentConfiguration());
+        modelBuilder.ApplyConfiguration(new MessageReactionConfiguration());
     }
 }

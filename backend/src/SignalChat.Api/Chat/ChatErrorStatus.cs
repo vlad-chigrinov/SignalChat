@@ -17,7 +17,7 @@ public static class ChatErrorStatus
     public static int For(string code) => code switch
     {
         "not_found" => NotFound,
-        "room_name_taken" or "room_limit_reached" or "owner_cannot_leave" => Conflict,
+        "room_name_taken" or "room_limit_reached" or "owner_cannot_leave" or RoomMemberErrorCodes.AlreadyMember => Conflict,
         DirectRequestErrorCodes.RequestPending
             or DirectRequestErrorCodes.IncomingRequestExists
             or DirectRequestErrorCodes.RequestLimitReached

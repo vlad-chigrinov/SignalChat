@@ -12,7 +12,10 @@ import type {
   DirectConversation,
   IncomingDirectRequest,
   Message,
+  MessageId,
+  Reaction,
   Room,
+  RoomMember,
   UserId,
   UserSummary,
 } from './types'
@@ -34,6 +37,10 @@ function directPath(conversationId: ConversationId, action: string): string {
 
 function conversationPath(conversationId: ConversationId): string {
   return `/api/conversations/${encodeURIComponent(conversationId)}/messages`
+}
+
+function reactionPath(conversationId: ConversationId, messageId: MessageId): string {
+  return `${conversationPath(conversationId)}/${encodeURIComponent(messageId)}/reaction`
 }
 
 function jsonBody(value: unknown): string {
@@ -75,6 +82,14 @@ export const httpApi: ChatApi = {
 
   leaveRoom: (roomId) => requestJson<void>(roomPath(roomId, 'leave'), { method: 'POST' }),
 
+  listRoomMembers: (roomId) => requestJson<RoomMember[]>(roomPath(roomId, 'members')),
+
+  inviteToRoom: (roomId, userId) =>
+    requestJson<void>(roomPath(roomId, 'invitations'), {
+      method: 'POST',
+      body: jsonBody({ userId }),
+    }),
+
   listDirectConversations: () => requestJson<DirectConversation[]>('/api/direct-conversations'),
 
   sendDirectRequest: (userId: UserId, text: string) =>
@@ -114,6 +129,14 @@ export const httpApi: ChatApi = {
     const params = new URLSearchParams({ limit: String(clampLimit(limit, HISTORY_MAX_LIMIT)) })
     if (before) params.set('before', before)
     return requestJson<CursorPage<Message>>(`${conversationPath(conversationId)}?${params}`)
+  },
+
+  async chooseReaction(conversationId, messageId, emoji) {
+    const answer = await requestJson<{ messageId: MessageId; reactions: Reaction[] }>(
+      reactionPath(conversationId, messageId),
+      { method: 'POST', body: jsonBody({ emoji }) },
+    )
+    return answer.reactions
   },
 
   getOnlineUserIds: () => requestJson<UserId[]>('/api/presence/online'),

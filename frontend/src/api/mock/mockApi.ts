@@ -4,6 +4,7 @@ import type { ConversationId, CursorPage, Message, UserId } from '../types'
 
 import { mockError } from './mockErrors'
 import { requireMember, sharedMockStore } from './mockHistories'
+import { chooseReaction, withReactions } from './mockReactions'
 import {
   acceptRequest,
   declineRequest,
@@ -13,6 +14,7 @@ import {
 } from './mockDirects'
 import { createRoom, discoverRooms, joinRoom, leaveRoom, listMyRooms } from './mockRooms'
 import { sendPhotoMessage } from './mockPhotos'
+import { inviteToRoom, listRoomMembers } from './mockRoomMembers'
 import { changeDisplayName, resetAvatar, uploadAvatar } from './mockProfile'
 import { searchUsers } from './mockUsers'
 import { mockOnlineUserIds } from './mockData'
@@ -84,6 +86,11 @@ export function createMockApi(options: MockApiOptions = {}): ChatApi {
 
     leaveRoom: (roomId) => delay(leaveRoom(sharedMockStore(), callerId(), roomId)),
 
+    listRoomMembers: (roomId) => delay(listRoomMembers(sharedMockStore(), callerId(), roomId)),
+
+    inviteToRoom: (roomId, userId) =>
+      delay(inviteToRoom(sharedMockStore(), callerId(), roomId, userId)),
+
     listDirectConversations: () => delay(listMyDirects(sharedMockStore(), callerId())),
 
     sendDirectRequest: (peerId, text) =>
@@ -120,11 +127,14 @@ export function createMockApi(options: MockApiOptions = {}): ChatApi {
       const end = parseCursor(before, history.length)
       const start = Math.max(0, end - limit)
       const page: CursorPage<Message> = {
-        items: history.slice(start, end),
+        items: withReactions(store, history.slice(start, end), callerId()),
         nextCursor: start > 0 ? String(start) : null,
       }
       return delay(page)
     },
+
+    chooseReaction: (conversationId, messageId, emoji) =>
+      delay(chooseReaction(sharedMockStore(), callerId(), conversationId, messageId, emoji)),
 
     getOnlineUserIds: () => delay([...mockOnlineUserIds]),
 

@@ -15,6 +15,9 @@ public sealed class ChatRateLimitOptions
     /// <summary>Join and leave share this one limit.</summary>
     public int RoomMembershipPerMinute { get; set; } = 30;
 
+    /// <summary>Invitations into rooms; refused ones count too.</summary>
+    public int RoomInvitePerMinute { get; set; } = 20;
+
     public int DirectConversationCreatePerMinute { get; set; } = 10;
 
     public int RoomCreatePerMinute { get; set; } = 10;
@@ -24,6 +27,8 @@ public sealed class ChatRateLimitOptions
 
     /// <summary>Photo messages; each one costs a decode and a write to the object store, so it stays low.</summary>
     public int PhotoUploadPerMinute { get; set; } = 6;
+    /// <summary>Picking, replacing and removing a reaction share this limit; each is a database write and a broadcast.</summary>
+    public int ReactionPerMinute { get; set; } = 60;
 
     /// <summary>Requests per client address; the test sign-in is not part of any user's allowance.</summary>
     public int TestLoginPerMinute { get; set; } = 20;
@@ -34,10 +39,12 @@ public sealed class ChatRateLimitOptions
         nameof(UserSearchPerMinute),
         nameof(RoomDiscoverPerMinute),
         nameof(RoomMembershipPerMinute),
+        nameof(RoomInvitePerMinute),
         nameof(DirectConversationCreatePerMinute),
         nameof(RoomCreatePerMinute),
         nameof(ProfileUpdatePerMinute),
         nameof(PhotoUploadPerMinute),
+        nameof(ReactionPerMinute),
         nameof(TestLoginPerMinute),
     ];
 }
