@@ -66,6 +66,10 @@ app.UseRateLimiter();
 
 app.MapHealthEndpoints();
 app.MapAuthEndpoints();
+if (app.Environment.IsDevelopment())
+{
+    app.MapSwaggerLogin();
+}
 if (e2eTestAuth.Enabled)
 {
     app.MapTestLoginEndpoints();

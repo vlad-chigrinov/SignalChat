@@ -35,6 +35,40 @@ public sealed class StageFeaturesTests
     }
 
     [Fact]
+    public async Task SwaggerLogin_InDevelopment_SendsTheBrowserToGoogle()
+    {
+        using var factory = new DevelopmentApiFactory();
+        using var client = factory.CreateApiClient();
+
+        var response = await client.GetAsync("/auth/swagger-login");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("accounts.google.com", response.Headers.Location!.Host);
+    }
+
+    [Fact]
+    public async Task SwaggerLogin_OutsideDevelopment_IsNotThere()
+    {
+        using var factory = new SignalChatApiFactory();
+        using var client = factory.CreateApiClient();
+
+        var response = await client.GetAsync("/auth/swagger-login");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Swagger_InDevelopment_LinksTheSwaggerLoginInTheDescription()
+    {
+        using var factory = new DevelopmentApiFactory();
+        using var client = factory.CreateApiClient();
+
+        var body = await client.GetStringAsync("/swagger/v1/swagger.json");
+
+        Assert.Contains("/auth/swagger-login", body);
+    }
+
+    [Fact]
     public async Task SwaggerUi_InDevelopment_IsNotBlockedByTheApiCsp()
     {
         using var factory = new DevelopmentApiFactory();
