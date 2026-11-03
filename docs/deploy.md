@@ -37,10 +37,11 @@ The address goes into the app and into its Content-Security-Policy.
 
 ```
 deploy/
-  docker-compose.infra.yml    PostgreSQL (shared, TLS through Traefik) and Watchtower
+  docker-compose.infra.yml    PostgreSQL (shared, TLS through Traefik), RustFS (photo store) and Watchtower
   docker-compose.main.yml     main: api + web
   docker-compose.stage.yml    stage: api (Development, Swagger, seed) + web
   postgres/                   pg_hba.conf, first-start script that creates the two databases and roles
+  rustfs/provision.sh         one-time: bucket, policy and access key of one environment in RustFS
   traefik/postgres-alpn.yml   optional Traefik TLS option for psql 17+ (see "The database")
   env/*.env.example           templates for infra.env, main.env, stage.env (the real files are git-ignored)
 ```
@@ -99,28 +100,79 @@ chmod 600 *.env
 
 Fill in the three files (every secret: `openssl rand -base64 36`):
 
-- `infra.env`: `POSTGRES_PASSWORD`, `MAIN_DB_PASSWORD`, `STAGE_DB_PASSWORD`, `REGISTRY_CONFIG_FILE` (absolute path to
+- `infra.env`: `POSTGRES_PASSWORD`, `MAIN_DB_PASSWORD`, `STAGE_DB_PASSWORD`, `RUSTFS_ROOT_USER`, `RUSTFS_ROOT_PASSWORD`,
+  `REGISTRY_CONFIG_FILE` (absolute path to
   the `config.json` from `docker login`), and the Traefik network, entrypoint and resolver names if they differ from
   the defaults (`web`, `postgres`, `le`).
 - `main.env`: `IMAGE_REGISTRY=ghcr.io/<owner>` (lower case), the same `MAIN_DB_PASSWORD`, `PII_ENCRYPTION_KEY`
-  (`openssl rand -base64 32`), the Google client id and secret, and the Traefik network, entrypoint and resolver names.
-- `stage.env`: the same, with `STAGE_DB_PASSWORD` and **a different** `PII_ENCRYPTION_KEY`.
+  (`openssl rand -base64 32`), the Google client id and secret, the photo store key (`MEDIA_ACCESS_KEY`,
+  `MEDIA_SECRET_KEY`) and the Traefik network, entrypoint and resolver names.
+- `stage.env`: the same, with `STAGE_DB_PASSWORD`, **a different** `PII_ENCRYPTION_KEY` and **a different** photo store key.
 
 Back up both `PII_ENCRYPTION_KEY` values in a password manager before the first start. Losing or changing a key makes the
 stored emails of that environment unreadable, see [pii-key-rotation.md](pii-key-rotation.md).
 
 ### 6. Start
 
-Infrastructure first (the database must exist), then the environments:
+Infrastructure first (the database and the photo store must exist), then the buckets (next section), then the
+environments. The API of `main` refuses to start without the photo store, and its key must exist before the first photo:
 
 ```sh
 docker compose --env-file infra.env -f docker-compose.infra.yml up -d
+# RustFS: first start (below) makes the two buckets and keys, then:
 docker compose --env-file main.env  -f docker-compose.main.yml  up -d
 docker compose --env-file stage.env -f docker-compose.stage.yml up -d
 docker compose --env-file main.env  -f docker-compose.main.yml  ps     # healthy
 ```
 
 From now on Watchtower keeps `main` and `stage` current; the compose files are needed again only when they change.
+
+### RustFS: first start
+
+The photos of chat messages live in RustFS, an S3-compatible store, in the infra stack (`signalchat-rustfs`, image
+`rustfs/rustfs:1.0.4`, data in the volume `signalchat-rustfs-data`). One store serves both environments, but each has its
+own bucket and its own access key, and a key can touch its bucket only: `signalchat-main-media` and
+`signalchat-stage-media`. The store is not published on the host and not routed by Traefik; the API containers reach it as
+`http://signalchat-rustfs:9000` on the `signalchat-data` network. The web console is off.
+
+After `up -d` of the infra stack, once per environment (it is safe to repeat), run the provisioning script inside the
+`rustfs/rc` image on that network. It reads the root keys from `infra.env` and the environment's key from `main.env` or
+`stage.env`, creates the bucket, a policy for that bucket alone, and the access key bound to it:
+
+```sh
+cd /opt/signalchat/deploy
+docker compose --env-file infra.env -f docker-compose.infra.yml ps rustfs        # healthy
+for env in main stage; do
+  docker run --rm --network signalchat-data \
+    --env-file infra.env --env-file $env.env \
+    -e RUSTFS_ENDPOINT=http://signalchat-rustfs:9000 -e MEDIA_BUCKET=signalchat-$env-media \
+    -v "$PWD/rustfs/provision.sh:/provision.sh:ro" --entrypoint sh rustfs/rc:v0.1.37 /provision.sh
+done
+```
+
+The last line of each run says `RustFS ready: bucket signalchat-<env>-media, access key ...`. An existing key is kept on a
+repeat run; to rotate it, delete the user in RustFS, change `MEDIA_ACCESS_KEY` and `MEDIA_SECRET_KEY` in the env file, run the
+script again and recreate the API container.
+
+To check it by hand, use the environment's own key (the root keys stay in `infra.env`):
+
+```sh
+docker run --rm --network signalchat-data --env-file main.env --entrypoint sh rustfs/rc:v0.1.37 -c '
+  rc alias set check http://signalchat-rustfs:9000 "$MEDIA_ACCESS_KEY" "$MEDIA_SECRET_KEY" &&
+  rc ls check/signalchat-main-media'      # its own bucket: listed (empty before the first photo)
+# The same call on check/signalchat-stage-media must be refused: a key touches its own bucket only.
+```
+
+**How a photo reaches a browser.** The browser never talks to RustFS. It asks the API for
+`/api/attachments/{id}/thumbnail` or `/original` with the session cookie; the API checks that the user is a member of the
+conversation (and, in a direct chat, that it is accepted), then streams the file from RustFS with a private, immutable
+`Cache-Control`. So a photo has no address that works without a session, the store needs no public route or certificate,
+and the page's Content-Security-Policy stays as it was (`img-src` only gained `blob:` for the preview of a picked file). The
+price is that the API carries the image bytes; thumbnails are small and cached by the browser.
+
+**Backups.** The volume `signalchat-rustfs-data` holds the only copy of the photos: back it up next to the `pg_dump`
+(stop the store first for a consistent copy), for example
+`docker run --rm -v signalchat-rustfs-data:/data:ro -v "$PWD":/backup alpine tar czf /backup/rustfs-$(date +%F).tgz -C /data .`
 
 ## Checks after the first start
 
@@ -131,7 +183,9 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://chat-api.vlados.tech/swagger/i
 curl -sS -o /dev/null -w '%{http_code}\n' https://chat-api-stage.vlados.tech/swagger/index.html  # 200 on stage
 ```
 
-Then sign in with Google on both SPAs. On stage the chat already holds the demo people (Alice, Bob, Carol and Dave Demo),
+Then sign in with Google on both SPAs. Open a room and send a photo with the paperclip button: it appears in the feed and
+opens full screen, and `rc ls` on the environment's bucket (above) shows two objects for it (the picture and its thumbnail).
+On stage the chat already holds the demo people (Alice, Bob, Carol and Dave Demo),
 three rooms with history and an accepted direct chat between Alice and Bob. The demo people cannot sign in; they exist as
 chat partners. `main` starts empty.
 
@@ -184,17 +238,25 @@ docker exec signalchat-db pg_dump -U postgres signalchat_main | gzip > signalcha
 
 ## Memory
 
-The host has about 957 MiB shared with other services, so every container has a hard limit and no swap:
+The host has about 957 MiB shared with other services (the figure from when this was written; check `free -m` before adding anything), so every container has a hard limit and no swap:
 
 | Container | Limit |
 |---|---|
 | `signalchat-db` | 160 MiB |
-| `signalchat-main-api` | 160 MiB (.NET heap capped at 80 MiB) |
-| `signalchat-stage-api` | 192 MiB (.NET heap capped at 96 MiB) |
+| `signalchat-rustfs` | 128 MiB (about 50 MiB idle) |
+| `signalchat-main-api` | 224 MiB (.NET heap capped at 80 MiB) |
+| `signalchat-stage-api` | 256 MiB (.NET heap capped at 96 MiB) |
 | `signalchat-main-web`, `signalchat-stage-web` | 32 MiB each |
 | `signalchat-watchtower` | 64 MiB |
 
 `DOTNET_GCHeapHardLimit` is read as hexadecimal: `5000000` is 80 MiB.
+
+The API limits were raised by 64 MiB each (from 160 and 192) on purpose, for photo uploads: a picture is decoded to raw
+pixels outside the managed heap (4 bytes a pixel, up to 16 megapixels, so up to 64 MB for one picture at a time), which the
+heap limit does not cover. Measured with the production image: nine 12-megapixel PNGs in one message peak at about 175 MiB
+under a 192 MiB limit and take 17 s, and the kernel killed the same upload under 160 MiB. The pictures of a message are
+processed one at a time, and a user can send only a few photo messages a minute. If the host cannot spare the extra memory,
+lower `MaxDecodedPixels` in `PhotoLimits.cs` (8 million pixels needs about 32 MB) instead of squeezing the container.
 
 ## Known limits
 

@@ -24,6 +24,10 @@ HTTPS dev certificate, starts PostgreSQL in Docker (`127.0.0.1:5433`), the front
 dev server when `frontend/` exists, and the API in the foreground. Ctrl+C stops the
 API and the frontend; `docker compose down` stops the database.
 
+Photos sent in a chat are kept in memory when `MEDIA_S3_ENDPOINT` is not set (local development), so no extra container is
+needed and they vanish when the API stops. The deployed environments keep them in the RustFS object store, see
+[docs/deploy.md](docs/deploy.md).
+
 | What | URL |
 |------|-----|
 | Frontend | http://localhost:5173 |

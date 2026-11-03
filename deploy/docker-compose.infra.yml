@@ -1,4 +1,4 @@
-# Shared infrastructure for both environments: one PostgreSQL server and Watchtower.
+# Shared infrastructure for both environments: one PostgreSQL server, the RustFS object store for chat photos, and Watchtower.
 # Start this first, before docker-compose.main.yml and docker-compose.stage.yml.
 #   docker compose --env-file infra.env -f docker-compose.infra.yml up -d
 # Every container, network and volume carries the signalchat- prefix so it cannot clash with other services on the host.
@@ -73,6 +73,46 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # S3-compatible object store for the photos of chat messages. One server, one bucket and one access key per environment
+  # (signalchat-main-media, signalchat-stage-media); the keys are made by deploy/rustfs/provision.sh, see docs/deploy.md.
+  # Not published on the host and not on Traefik: only the API containers reach it, by the name signalchat-rustfs on the
+  # signalchat-data network. A photo is served to a browser by the API after a membership check, never straight from here.
+  rustfs:
+    image: rustfs/rustfs:1.0.4
+    container_name: signalchat-rustfs
+    restart: unless-stopped
+    environment:
+      # The root keys of the store. Only the one-time provisioning uses them; the APIs get keys of their own.
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ROOT_USER:?set RUSTFS_ROOT_USER in infra.env}
+      RUSTFS_SECRET_KEY: ${RUSTFS_ROOT_PASSWORD:?set RUSTFS_ROOT_PASSWORD in infra.env}
+      RUSTFS_VOLUMES: /data
+      # The web console is off: nothing in the stack needs it, and it is one more thing to expose.
+      RUSTFS_CONSOLE_ENABLE: "false"
+      RUSTFS_OBS_LOGGER_LEVEL: warn
+      RUSTFS_OBS_LOG_DIRECTORY: /logs
+      RUSTFS_OBS_ENVIRONMENT: production
+    # No "ports": S3 (9000) is reachable on the signalchat-data network only.
+    volumes:
+      - signalchat-rustfs-data:/data
+    tmpfs:
+      - /logs
+      - /tmp
+    networks:
+      - signalchat-data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    # About 50 MiB idle with the console off (measured); a photo is under 3 MiB. The hard limit keeps the store from
+    # taking the host's memory, and the server is shared.
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.5
+    security_opt:
+      - no-new-privileges:true
+
   # Pulls the new :main and :stage images and recreates the labelled containers. Touches nothing else on the host:
   # only containers with the enable label and this scope are watched, so the database and other services are left alone.
   watchtower:
@@ -105,7 +145,7 @@ services:
       - no-new-privileges:true
 
 networks:
-  # The API containers of both environments join this network to reach the database by the name signalchat-db.
+  # The API containers of both environments join this network to reach the database (signalchat-db) and the photo store (signalchat-rustfs).
   signalchat-data:
     name: signalchat-data
     driver: bridge
@@ -117,3 +157,5 @@ networks:
 volumes:
   signalchat-db-data:
     name: signalchat-db-data
+  signalchat-rustfs-data:
+    name: signalchat-rustfs-data
