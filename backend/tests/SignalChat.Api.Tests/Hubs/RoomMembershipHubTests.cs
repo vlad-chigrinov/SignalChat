@@ -107,11 +107,13 @@ public sealed class RoomMembershipHubTests
         await using var ownerHub = await HubTestClient.ConnectAsync(factory, ownerCookie);
         var presence = new HubEventInbox<PresenceChangedDto>(ownerHub, PresenceEvent);
         var newcomerHub = await HubTestClient.ConnectAsync(factory, newcomerCookie);
+        // StartAsync returns after the handshake, which the server answers before OnConnectedAsync has counted the user.
+        var announcer = factory.Services.GetRequiredService<PresenceAnnouncer>();
+        await Eventually.UntilAsync(() => announcer.IsOnline(newcomer.Id), "the server to count the newcomer");
         await HubFixtures.JoinRoomAsync(client, newcomerCookie, roomId);
         Assert.True((await presence.NextAsync()).IsOnline);
 
         await newcomerHub.DisposeAsync();
-        var announcer = factory.Services.GetRequiredService<PresenceAnnouncer>();
         await Eventually.UntilAsync(() => announcer.HasPendingOffline(newcomer.Id), "the offline grace period to start");
         factory.Clock.Advance(ChatHubLimits.PresenceOfflineGrace);
 

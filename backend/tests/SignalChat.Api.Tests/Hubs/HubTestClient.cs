@@ -1,4 +1,5 @@
 using System.Net.WebSockets;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Client;
 using SignalChat.Api.Hubs;
 using SignalChat.Api.Tests.Infrastructure;
@@ -33,6 +34,26 @@ internal static class HubTestClient
     {
         var connection = Create(factory, cookie);
         await connection.StartAsync();
+        await WaitForOnConnectedAsync(connection);
         return connection;
     }
+
+    /// <summary>
+    /// StartAsync returns after the handshake, which the server answers before OnConnectedAsync has run, so the user
+    /// may not be in the personal group yet. The server dispatches client calls only after OnConnectedAsync, so the
+    /// answer to a call of an unknown method (an error, with no side effect) proves it has finished.
+    /// </summary>
+    private static async Task WaitForOnConnectedAsync(HubConnection connection)
+    {
+        try
+        {
+            await connection.InvokeAsync(UnknownHubMethod);
+        }
+        catch (HubException)
+        {
+            // Expected: the method does not exist.
+        }
+    }
+
+    private const string UnknownHubMethod = "WaitForOnConnected";
 }
