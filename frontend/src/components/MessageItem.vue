@@ -97,6 +97,7 @@ async function choose(emoji: string): Promise<void> {
         v-if="isPickerOpen"
         :chosen="ownEmojiOf(message.reactions)"
         :placement="placement"
+        :align="isOwn ? 'end' : 'start'"
         @choose="choose"
       />
       <ReactionBar :reactions="message.reactions" @choose="choose" />

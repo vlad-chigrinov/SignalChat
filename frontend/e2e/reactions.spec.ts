@@ -7,6 +7,8 @@ const PHONE_VIEWPORT = { width: 375, height: 667 }
 const PLAIN_MESSAGE = '(#91)'
 const SINGLE_REACTION_MESSAGE = '(#92)'
 const SHARED_REACTION_MESSAGE = '(#93)'
+/** One row of 36 px buttons plus padding. */
+const PANEL_MAX_HEIGHT_PX = 60
 
 function messageWith(page: Page, marker: string): Locator {
   return page
@@ -172,4 +174,30 @@ test('on a phone the panel stays inside the screen', async ({ page }) => {
   expect(box.x + box.width).toBeLessThanOrEqual(PHONE_VIEWPORT.width)
   await picker(page).getByRole('button', { name: '🎉' }).click()
   await expect(chip(messageWith(page, PLAIN_MESSAGE), '🎉')).toBeVisible()
+})
+
+test('the panel is one row of the same size for a short message and a long one', async ({
+  page,
+}) => {
+  await openGeneral(page)
+  // "(#91)" is a short line; "(#92)" is a multi-line message of the seed, so the bubbles differ in width.
+  const shortBubble = await messageWith(page, PLAIN_MESSAGE).locator('.bubble').boundingBox()
+  await messageWith(page, PLAIN_MESSAGE).locator('.text').click()
+  const shortPanel = await picker(page).boundingBox()
+  const options = await picker(page).getByRole('button').all()
+  const optionTops = await Promise.all(
+    options.map(async (option) => (await option.boundingBox())?.y ?? Number.NaN),
+  )
+  await page.keyboard.press('Escape')
+
+  await messageWith(page, '(#89)').locator('.text').click()
+  const wideBubble = await messageWith(page, '(#89)').locator('.bubble').boundingBox()
+  const widePanel = await picker(page).boundingBox()
+
+  if (!shortBubble || !shortPanel || !wideBubble || !widePanel) throw new Error('no box')
+  expect(wideBubble.width).not.toBeCloseTo(shortBubble.width, 0)
+  expect(new Set(optionTops).size).toBe(1)
+  expect(shortPanel.height).toBeLessThan(PANEL_MAX_HEIGHT_PX)
+  expect(shortPanel.width).toBeCloseTo(widePanel.width, 0)
+  expect(shortPanel.height).toBeCloseTo(widePanel.height, 0)
 })

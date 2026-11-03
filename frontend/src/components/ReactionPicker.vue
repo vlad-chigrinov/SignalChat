@@ -6,13 +6,15 @@ defineProps<{
   /** The emoji the user holds on this message now, or null. */
   chosen: string | null
   placement: PickerPlacement
+  /** The side of the message the panel lines up with: the start for others' messages, the end for own ones. */
+  align: 'start' | 'end'
 }>()
 
 const emit = defineEmits<{ choose: [emoji: string] }>()
 </script>
 
 <template>
-  <div class="picker" :class="placement" role="group" aria-label="Выберите реакцию">
+  <div class="picker" :class="[placement, align]" role="group" aria-label="Выберите реакцию">
     <button
       v-for="emoji in REACTION_EMOJIS"
       :key="emoji"
@@ -32,14 +34,24 @@ const emit = defineEmits<{ choose: [emoji: string] }>()
   position: absolute;
   z-index: 2;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 2px;
+  /* Its own width, not the width of the message: a short message must not squeeze the row into two lines. */
+  width: max-content;
   max-width: calc(100vw - 32px);
   padding: 4px;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
   box-shadow: 0 4px 16px rgb(0 0 0 / 18%);
+}
+
+.picker.start {
+  left: 0;
+}
+
+.picker.end {
+  right: 0;
 }
 
 .picker.above {
@@ -51,7 +63,8 @@ const emit = defineEmits<{ choose: [emoji: string] }>()
 }
 
 .option {
-  min-width: 36px;
+  flex: none;
+  width: 36px;
   height: 36px;
   padding: 0;
   border: 0;
