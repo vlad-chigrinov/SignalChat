@@ -40,6 +40,7 @@ describe('auth store profile actions', () => {
       author: { id: ME.id, displayName: ME.displayName, avatarUrl: null },
       text: 'привет',
       sentAt: '2026-11-02T10:00:00.000Z',
+      reactions: [],
     }
     messages.histories['room-1'] = {
       items: [own],

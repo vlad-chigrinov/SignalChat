@@ -21,4 +21,10 @@ public interface IChatClient
 
     /// <summary>A user with a shared conversation (or the caller, in another tab) changed their name or avatar.</summary>
     Task UserProfileChanged(UserSummaryDto user);
+
+    /// <summary>The reactions of a message changed: the new counts, for every member of the conversation.</summary>
+    Task ReactionsChanged(ReactionsChangedEventDto change);
+
+    /// <summary>The caller's own reaction on a message changed (sent to the caller's tabs only).</summary>
+    Task MyReactionChanged(MyReactionChangedEventDto change);
 }

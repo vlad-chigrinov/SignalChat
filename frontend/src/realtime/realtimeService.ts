@@ -109,6 +109,8 @@ export function createRealtimeService(hub: ChatHub): RealtimeService {
       auth.applyOwnProfile(user)
       applyProfileChange(user)
     }),
+    hub.on('ReactionsChanged', (event) => messages.applyReactionsChanged(event)),
+    hub.on('MyReactionChanged', (event) => messages.applyMyReactionChanged(event)),
     hub.onConnectionState((state) => connection.setState(state)),
     hub.onReconnected(() => void restoreAfterReconnect()),
     hub.onClosed(() => void handleServerClose()),

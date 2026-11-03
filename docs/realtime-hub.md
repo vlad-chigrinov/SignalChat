@@ -39,6 +39,8 @@ Text is trimmed. Empty text or text longer than 2000 characters is `invalid_mess
 | `PresenceChanged` | `{ userId, isOnline }` |
 | `DirectRequestReceived` | `{ conversationId, from: UserSummary, text, createdAt }`. Sent only to the recipient (their `user:` group) when a request is created or reopened. |
 | `DirectRequestAccepted` | `{ conversationId, peer: UserSummary }`. Sent only to the initiator (their `user:` group) when the recipient accepts. A decline sends no event. |
+| `ReactionsChanged` | `{ conversationId, messageId, reactions: [{ emoji, count }] }`. Sent to the conversation group after a reaction is stored. Complete new counts, not a delta; no user in it. |
+| `MyReactionChanged` | `{ conversationId, messageId, emoji \| null }`. Sent only to the acting user's `user:` group (their tabs), right after `ReactionsChanged`. |
 
 There is no "stopped typing" event. The client hides the typing hint after its own timeout.
 
@@ -90,6 +92,25 @@ presence): a request's sender shows the new profile after the next `GET /api/dir
 The event is a hint, not the source of truth: every REST list returns the current profile, so a client that misses it (offline,
 reconnecting) is correct again after the next load. Why an event and not only "on next load": a name that stays old until a
 reload looks like a bug in a chat, and the event costs one group send.
+
+### Reactions (`ReactionsChanged`, `MyReactionChanged`)
+
+Reactions are chosen over REST (`POST /api/conversations/{id}/messages/{messageId}/reaction`, body `{ "emoji": "👍" }`, see
+`frontend/src/api/CONTRACT.md`), not over the hub: the hub only carries the news. After the change is stored the server sends
+two events, in this order:
+
+1. `ReactionsChanged` to the conversation group (`room:` or `dm:`): the **complete** new counts of the message. It is the same
+   for every member, so it cannot say "which one is mine", and it names no user.
+2. `MyReactionChanged` to the actor's own `user:` group: the emoji the actor holds now (`null` after removing). It lets the
+   actor's other tabs mark the reaction as theirs. The tab that made the choice gets the same facts from the REST answer.
+
+Why this shape: a per-viewer flag cannot be put into one broadcast, and sending the actor's id to the whole room would
+reveal who reacted. With counts to all and "mine" to the actor only, nobody learns who else reacted, and the client derives its
+own flag. The counts are absolute, so a repeated event is harmless, and the client ignores an event for a message that is not
+loaded (the history page brings the current reactions). A reconnect catch-up (`refreshLatest`) re-reads the newest page,
+reactions included.
+
+A refused choice (not a member, pending request, message of another conversation, unknown emoji, rate limit) sends nothing.
 
 ## Presence
 
@@ -162,6 +183,7 @@ Per user, fixed window of one minute. The key is the session user; an anonymous 
 | `POST /api/direct-conversations` | 10 | `DirectConversationCreatePerMinute` |
 | `POST /api/rooms` | 10 | `RoomCreatePerMinute` |
 | `PUT /api/me/display-name`, `PUT` and `DELETE /api/me/avatar` | 10, shared | `ProfileUpdatePerMinute` |
+| `POST /api/conversations/{id}/messages/{messageId}/reaction` | 60 | `ReactionPerMinute` |
 
 The numbers above are defaults. Override them under `Chat:RateLimits` in configuration (for example `Chat:RateLimits:RoomCreatePerMinute`).
 

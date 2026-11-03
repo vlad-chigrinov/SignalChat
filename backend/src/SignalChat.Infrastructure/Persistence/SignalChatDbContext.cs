@@ -23,6 +23,8 @@ public sealed class SignalChatDbContext(
 
     public DbSet<Message> Messages => Set<Message>();
 
+    public DbSet<MessageReaction> MessageReactions => Set<MessageReaction>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new UserConfiguration(personalDataCipher));
@@ -31,5 +33,6 @@ public sealed class SignalChatDbContext(
         modelBuilder.ApplyConfiguration(new RoomMemberConfiguration());
         modelBuilder.ApplyConfiguration(new DirectConversationConfiguration());
         modelBuilder.ApplyConfiguration(new MessageConfiguration());
+        modelBuilder.ApplyConfiguration(new MessageReactionConfiguration());
     }
 }

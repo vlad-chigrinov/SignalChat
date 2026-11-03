@@ -9,6 +9,10 @@ const DEV_ROOM_MESSAGE_COUNT = 12
 const DIRECT_ANNA_MESSAGE_COUNT = 8
 const DIRECT_IGOR_MESSAGE_COUNT = 3
 const REQUEST_AGE_MINUTES = 30
+const SEEDED_ROOM = 'room-general'
+/** Message numbers in the general room (the text ends with `(#n)`) that start with reactions. */
+const SEEDED_SINGLE = 92
+const SEEDED_SHARED = 93
 
 export const mockCurrentUser: CurrentUser = {
   id: 'u-me',
@@ -49,7 +53,25 @@ function buildHistory(conversationId: string, authors: UserSummary[], count: num
     author: authors[index % authors.length] ?? mockCurrentUser,
     text: `${SAMPLE_LINES[index % SAMPLE_LINES.length]} (#${index + 1})`,
     sentAt: minutesAgo((count - index) * MESSAGE_SPACING_MINUTES),
+    reactions: [],
   }))
+}
+
+/**
+ * Two messages of the newest page already carry other people's reactions: one with a single
+ * reaction, one where a second 👍 makes a count.
+ */
+function seedReactions(): MockStore['reactions'] {
+  return new Map([
+    [`${SEEDED_ROOM}-m${SEEDED_SINGLE}`, new Map([[anna.id, '❤️']])],
+    [
+      `${SEEDED_ROOM}-m${SEEDED_SHARED}`,
+      new Map([
+        [olga.id, '👍'],
+        [igor.id, '😂'],
+      ]),
+    ],
+  ])
 }
 
 /** The demo data a fresh page starts with. Pure: every call returns a new, independent store. */
@@ -70,6 +92,7 @@ export function createSeedStore(): MockStore {
           author: olga,
           text: 'Здравствуйте! Можно обсудить релиз?',
           sentAt: minutesAgo(REQUEST_AGE_MINUTES),
+          reactions: [],
         },
       ],
     ],
@@ -146,6 +169,7 @@ export function createSeedStore(): MockStore {
       ],
     ]),
     histories,
+    reactions: seedReactions(),
     nextId: 1,
   }
 }

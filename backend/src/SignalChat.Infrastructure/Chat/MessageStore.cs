@@ -31,7 +31,7 @@ public sealed class MessageStore(
     }
 
     public async Task<MessagePage> GetPageAsync(
-        ConversationRef conversation, MessageCursor? before, int limit, CancellationToken cancellationToken)
+        Guid viewerId, ConversationRef conversation, MessageCursor? before, int limit, CancellationToken cancellationToken)
     {
         var query = dbContext.Messages.AsNoTracking().Where(message => message.DeletedAt == null);
         query = conversation.Kind == ConversationKind.Room
@@ -58,8 +58,14 @@ public sealed class MessageStore(
         var pageRows = rows.Take(limit).Reverse().ToList();
         var authors = await LoadAuthorsAsync(pageRows.Select(row => row.AuthorId).Distinct().ToList(), cancellationToken);
 
+        var reactions = await ReactionAggregates.LoadAsync(
+            dbContext, pageRows.Select(row => row.Id).ToList(), viewerId, cancellationToken);
+
         var items = pageRows
-            .Select(row => new MessageView(row.Id, conversation.Id, authors[row.AuthorId], row.Text, row.CreatedAt))
+            .Select(row => new MessageView(row.Id, conversation.Id, authors[row.AuthorId], row.Text, row.CreatedAt)
+            {
+                Reactions = reactions.GetValueOrDefault(row.Id) ?? [],
+            })
             .ToList();
         var nextCursor = hasOlder && pageRows.Count > 0
             ? new MessageCursor(pageRows[0].CreatedAt, pageRows[0].Id).Encode()

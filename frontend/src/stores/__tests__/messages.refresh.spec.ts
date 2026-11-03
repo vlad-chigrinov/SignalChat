@@ -12,6 +12,7 @@ function message(index: number): Message {
     author: { id: 'u1', displayName: 'U', avatarUrl: null },
     text: `text ${index}`,
     sentAt: new Date(Date.UTC(2026, 0, 1, 10, index)).toISOString(),
+    reactions: [],
   }
 }
 

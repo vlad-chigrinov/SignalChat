@@ -31,7 +31,7 @@ const DM = 'dm-anna'
 const MICROTASK_TURNS = 5
 
 function message(id: string, sentAt: string, author: UserSummary = PEER): Message {
-  return { id, conversationId: ROOM, author, text: `text ${id}`, sentAt }
+  return { id, conversationId: ROOM, author, text: `text ${id}`, sentAt, reactions: [] }
 }
 
 async function flushPromises(): Promise<void> {

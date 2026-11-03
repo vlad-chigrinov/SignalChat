@@ -28,6 +28,7 @@ public static class ChatRestRateLimiting
                 options, ChatRateLimitPolicies.DirectConversationCreate, limits.DirectConversationCreatePerMinute, ChatRateLimitKey.Of);
             AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomCreate, limits.RoomCreatePerMinute, ChatRateLimitKey.Of);
             AddFixedWindowPolicy(options, ChatRateLimitPolicies.ProfileUpdate, limits.ProfileUpdatePerMinute, ChatRateLimitKey.Of);
+            AddFixedWindowPolicy(options, ChatRateLimitPolicies.Reaction, limits.ReactionPerMinute, ChatRateLimitKey.Of);
             AddFixedWindowPolicy(options, ChatRateLimitPolicies.TestLogin, limits.TestLoginPerMinute, ChatRateLimitKey.OfAddress);
         });
         return services;

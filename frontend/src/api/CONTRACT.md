@@ -92,6 +92,26 @@ SignalR hub `SendMessage` (see `realtime/`). The client also checks the text its
 (1..2000 characters after trim); the hub rejects `invalid_message` for empty or too long text.
 The text is plain text; the UI never renders HTML.
 
+## Reactions
+
+`POST /api/conversations/{id}/messages/{messageId}/reaction`, body `{ "emoji": "👍" }`
+
+One reaction per user and message, held by the server (the key of the table is the pair message + user). The route is a
+choice, and the server decides the move: no reaction yet → added; another emoji → replaced; the same emoji again → removed.
+
+- The emoji must be one of the fixed list: 👍 ❤️ 😂 😮 😢 🎉 (`ReactionCatalog` in the backend domain, mirrored by
+  `src/api/reactionCatalog.ts`). Anything else is 400 `invalid_reaction`; nothing is stored.
+- The caller must be a room member or a side of an accepted direct conversation, and the message must belong to that
+  conversation and not be deleted: otherwise 404 `not_found` (a non-member, a missing id and a foreign message look the same).
+  The writer of a pending request gets 409 `dm_not_accepted`; its recipient gets 404 (as for the history).
+- 200 `{ messageId, reactions: Reaction[] }` — the reactions of the message as the caller sees them.
+- Limited to 60 per user per minute: 429 `rate_limited` with `Retry-After`.
+
+`Reaction` is `{ emoji, count, reactedByMe }`: how many people chose the emoji and whether the caller is one of them. It
+never says who the others are. Messages carry `reactions: Reaction[]` (catalog order, empty when none) in the history and in
+the live `MessageReceived`. Live changes come through the hub events `ReactionsChanged` and `MyReactionChanged` (see
+`docs/realtime-hub.md`).
+
 ## Presence (expected, owned by #6)
 
 `GET /api/presence/online` → 200 `UserId[]`: only the peers who share a room or a direct
@@ -119,3 +139,6 @@ treats a failure as "everyone offline". Live changes come through SignalR `Prese
 | `invalid_avatar`             | The upload is not a JPEG, PNG, GIF or WebP, is damaged, or is over 4096 px       |
 | `avatar_too_large`           | The upload is over 2 MiB (HTTP 413)                                              |
 | `dm_request_limit_reached`   | The caller has 20 requests waiting for an answer                                 |
+| `invalid_reaction`           | The reaction is not one of the allowed emoji                                     |
+| `dm_not_accepted`            | The writer of a pending request cannot react (REST); the hub uses it for sending |
+| `rate_limited`               | Too many requests of a limited route (HTTP 429, with `Retry-After`)              |

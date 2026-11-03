@@ -14,6 +14,7 @@ public static class ChatEndpoints
         api.MapRoomEndpoints();
         api.MapDirectConversationEndpoints();
         api.MapMessageEndpoints();
+        api.MapReactionEndpoints();
         api.MapUserSearchEndpoints();
         api.MapPresenceEndpoints();
         api.MapProfileEndpoints();

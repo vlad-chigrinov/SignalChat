@@ -78,6 +78,19 @@ public sealed class ChatRestRateLimitTests
     }
 
     [Fact]
+    public async Task Reactions_AreLimitedPerMinute()
+    {
+        using var factory = new LowRateLimitApiFactory();
+        var (owner, cookie) = await factory.CreateSessionAsync(HubFixtures.Profile("rl-react"));
+        using var client = factory.CreateApiClient();
+        var roomId = await HubFixtures.CreateRoomAsync(client, cookie);
+        var messageId = await ReactionFixtures.AppendMessageAsync(factory, owner.Id, roomId);
+
+        await AssertLimitedAfterPermitsAsync(
+            HttpStatusCode.OK, () => ReactionFixtures.ReactAsync(client, cookie, roomId, messageId, ReactionFixtures.ThumbsUp));
+    }
+
+    [Fact]
     public async Task AnExhaustedUser_DoesNotBlockAnotherUser()
     {
         using var factory = new LowRateLimitApiFactory();

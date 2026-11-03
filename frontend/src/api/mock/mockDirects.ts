@@ -99,6 +99,7 @@ export function sendDirectRequest(
     author,
     text,
     sentAt: new Date().toISOString(),
+    reactions: [],
   })
   return toDirect(store, direct, userId)
 }

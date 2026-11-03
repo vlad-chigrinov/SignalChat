@@ -19,6 +19,9 @@ export const API_ERROR_TEXT: Record<ApiErrorCode, string> = {
   invalid_display_name: 'Имя: от 1 до 100 символов, без управляющих символов.',
   invalid_avatar: 'Не удалось прочитать картинку. Подойдут JPEG, PNG, GIF или WebP.',
   avatar_too_large: 'Файл слишком большой. Максимум 2 МБ.',
+  invalid_reaction: 'Такой реакции нет.',
+  dm_not_accepted: 'Собеседник ещё не принял запрос.',
+  rate_limited: 'Слишком часто. Подождите немного.',
 }
 
 export function isApiErrorCode(code: string): code is ApiErrorCode {

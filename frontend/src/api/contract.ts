@@ -8,6 +8,8 @@ import type {
   IncomingDirectRequest,
   LoginOutcome,
   Message,
+  MessageId,
+  Reaction,
   Room,
   UserId,
   UserSummary,
@@ -43,6 +45,16 @@ export interface ChatApi {
   searchUsers(query: string, limit: number): Promise<UserSummary[]>
   /** History only. Messages are sent through the realtime hub (C1), never over REST. */
   getMessages(conversationId: ConversationId, query: HistoryQuery): Promise<CursorPage<Message>>
+  /**
+   * The caller picks a reaction for a message: none yet → added, another → replaced, the same →
+   * removed. Answers with the message's reactions as the caller sees them. Rejects with
+   * `invalid_reaction`, `not_found`, `dm_not_accepted` or `rate_limited`.
+   */
+  chooseReaction(
+    conversationId: ConversationId,
+    messageId: MessageId,
+    emoji: string,
+  ): Promise<Reaction[]>
   getOnlineUserIds(): Promise<UserId[]>
   /** The caller's own name. Rejects with `invalid_display_name`. Answers with the updated profile. */
   changeDisplayName(displayName: string): Promise<CurrentUser>

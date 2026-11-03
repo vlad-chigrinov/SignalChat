@@ -56,12 +56,30 @@ export interface IncomingDirectRequest {
 
 export type Conversation = Room | DirectConversation
 
+/**
+ * One emoji under a message: how many people chose it, and whether the caller is one of them.
+ * Never says who the others are.
+ */
+export interface Reaction {
+  emoji: string
+  count: number
+  reactedByMe: boolean
+}
+
+/** How many people chose an emoji, as the live event carries it (the same for every member). */
+export interface ReactionCount {
+  emoji: string
+  count: number
+}
+
 export interface Message {
   id: MessageId
   conversationId: ConversationId
   author: UserSummary
   text: string
   sentAt: string
+  /** Counts per emoji in catalog order; empty when nobody reacted. */
+  reactions: Reaction[]
 }
 
 /** One page of history. `items` are chronological (oldest first). */
@@ -105,6 +123,9 @@ export type ApiErrorCode =
   | 'invalid_display_name'
   | 'invalid_avatar'
   | 'avatar_too_large'
+  | 'invalid_reaction'
+  | 'dm_not_accepted'
+  | 'rate_limited'
 
 export interface CreateRoomInput {
   name: string

@@ -9,6 +9,8 @@ import {
   type DirectRequestReceivedEvent,
   type HubEventMap,
   type HubEventName,
+  type MyReactionChangedEvent,
+  type ReactionsChangedEvent,
   type UserTypingEvent,
 } from './hubContract'
 
@@ -41,6 +43,8 @@ export class FakeChatHub implements ChatHub {
     DirectRequestReceived: new Set(),
     DirectRequestAccepted: new Set(),
     UserProfileChanged: new Set(),
+    ReactionsChanged: new Set(),
+    MyReactionChanged: new Set(),
   }
   private readonly typingSent: ConversationId[] = []
   private readonly queuedStartFailures: HubCallError[] = []
@@ -93,6 +97,7 @@ export class FakeChatHub implements ChatHub {
       author,
       text,
       sentAt: new Date().toISOString(),
+      reactions: [],
     }
     historyOf(sharedMockStore(), conversationId).push(message)
     this.emitMessage(message)
@@ -152,6 +157,14 @@ export class FakeChatHub implements ChatHub {
 
   emitProfileChanged(user: UserSummary): void {
     this.emit('UserProfileChanged', user)
+  }
+
+  emitReactionsChanged(event: ReactionsChangedEvent): void {
+    this.emit('ReactionsChanged', event)
+  }
+
+  emitMyReactionChanged(event: MyReactionChangedEvent): void {
+    this.emit('MyReactionChanged', event)
   }
 
   /** Drops the connection and brings it back, as an automatic reconnect does. */

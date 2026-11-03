@@ -2,7 +2,15 @@
  * Client side of the ChatHub contract (see .agentsroom memory `features/realtime-hub-contract`).
  * Names and payloads must match the backend hub exactly.
  */
-import type { ConversationId, Message, PresenceChange, UserId, UserSummary } from '@/api'
+import type {
+  ConversationId,
+  Message,
+  MessageId,
+  PresenceChange,
+  ReactionCount,
+  UserId,
+  UserSummary,
+} from '@/api'
 
 export const HUB_PATH = '/hubs/chat'
 
@@ -24,6 +32,8 @@ export const HUB_EVENTS = {
   DirectRequestReceived: 'DirectRequestReceived',
   DirectRequestAccepted: 'DirectRequestAccepted',
   UserProfileChanged: 'UserProfileChanged',
+  ReactionsChanged: 'ReactionsChanged',
+  MyReactionChanged: 'MyReactionChanged',
 } as const
 
 /** The client hides a typing indicator after this long without a new `UserTyping`. */
@@ -79,6 +89,23 @@ export interface DirectRequestAcceptedEvent {
   peer: UserSummary
 }
 
+/**
+ * The reactions of a message changed. The complete new counts for every member of the conversation
+ * (not a delta), and no user: whether one of them is the caller comes from `MyReactionChanged`.
+ */
+export interface ReactionsChangedEvent {
+  conversationId: ConversationId
+  messageId: MessageId
+  reactions: ReactionCount[]
+}
+
+/** Sent to the caller's own tabs only: the emoji they hold on the message now (null: none). */
+export interface MyReactionChangedEvent {
+  conversationId: ConversationId
+  messageId: MessageId
+  emoji: string | null
+}
+
 /** Payload of each server event the client subscribes to. */
 export interface HubEventMap {
   MessageReceived: Message
@@ -90,6 +117,8 @@ export interface HubEventMap {
   DirectRequestAccepted: DirectRequestAcceptedEvent
   /** A user with a shared conversation, or the caller in another tab, changed their name or avatar. */
   UserProfileChanged: UserSummary
+  ReactionsChanged: ReactionsChangedEvent
+  MyReactionChanged: MyReactionChangedEvent
 }
 
 export type HubEventName = keyof HubEventMap

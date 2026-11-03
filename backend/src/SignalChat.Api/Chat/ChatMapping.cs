@@ -27,7 +27,12 @@ public static class ChatMapping
             : DirectConversationStatusNames.Pending;
 
     public static MessageDto ToDto(MessageView message) =>
-        new(message.Id, message.ConversationId, ToDto(message.Author), message.Text, message.SentAt);
+        new(message.Id, message.ConversationId, ToDto(message.Author), message.Text, message.SentAt, ToDtos(message.Reactions));
+
+    public static ReactionDto ToDto(ReactionView reaction) => new(reaction.Emoji, reaction.Count, reaction.ReactedByMe);
+
+    public static IReadOnlyList<ReactionDto> ToDtos(IReadOnlyList<ReactionView> reactions) =>
+        reactions.Select(ToDto).ToList();
 
     public static MessagePageDto ToDto(MessagePage page) =>
         new(page.Items.Select(ToDto).ToList(), page.NextCursor);

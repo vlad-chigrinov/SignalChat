@@ -55,7 +55,11 @@ public sealed record MessageView(
     Guid ConversationId,
     ChatUser Author,
     string Text,
-    DateTimeOffset SentAt);
+    DateTimeOffset SentAt)
+{
+    /// <summary>Counts per emoji as the viewer sees them; empty for a message that was just written.</summary>
+    public IReadOnlyList<ReactionView> Reactions { get; init; } = [];
+}
 
 /// <summary>One history page, oldest message first. <see cref="NextCursor"/> is null on the last page.</summary>
 public sealed record MessagePage(IReadOnlyList<MessageView> Items, string? NextCursor);

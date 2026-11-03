@@ -3,6 +3,7 @@ import type {
   CurrentUser,
   Message,
   MessagePreview,
+  MessageId,
   UserId,
   UserSummary,
 } from '../types'
@@ -41,6 +42,8 @@ export interface MockStore {
   rooms: Map<ConversationId, MockRoom>
   directs: Map<ConversationId, MockDirect>
   histories: Map<ConversationId, Message[]>
+  /** What each user chose per message: one emoji per user. The messages themselves carry no reactions here. */
+  reactions: Map<MessageId, Map<UserId, string>>
   nextId: number
 }
 

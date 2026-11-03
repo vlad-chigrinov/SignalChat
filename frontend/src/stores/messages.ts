@@ -1,9 +1,19 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-import { api, type ConversationId, type CursorPage, type Message, type UserSummary } from '@/api'
+import {
+  api,
+  type ConversationId,
+  type CursorPage,
+  type Message,
+  type MessageId,
+  type Reaction,
+  type UserSummary,
+} from '@/api'
+import type { MyReactionChangedEvent, ReactionsChangedEvent } from '@/realtime/hubContract'
 import { errorMessage } from '@/utils/errorMessage'
 import { mergeMessages } from '@/utils/mergeMessages'
+import { withCounts, withOwnEmoji } from '@/utils/reactions'
 
 import { useRoomsStore } from './rooms'
 
@@ -31,6 +41,7 @@ const EMPTY_HISTORY: Readonly<ConversationHistory> = Object.freeze(emptyHistory(
 /** Message history per conversation, loaded page by page from the newest backwards. */
 export const useMessagesStore = defineStore('messages', () => {
   const histories = ref<Record<ConversationId, ConversationHistory>>({})
+  const pendingReactionKeys = new Set<string>()
 
   function historyOf(conversationId: ConversationId): Readonly<ConversationHistory> {
     return histories.value[conversationId] ?? EMPTY_HISTORY
@@ -119,11 +130,56 @@ export const useMessagesStore = defineStore('messages', () => {
     return collected
   }
 
-  /** Real-time entry point (SignalR, #7): a message was posted in a conversation. */
+  /**
+   * Real-time entry point (SignalR, #7): a message was posted in a conversation. The same message
+   * can come twice (the send answer and the group event), both with no reactions: a copy that is
+   * already shown keeps the reactions it has gathered since.
+   */
   function applyIncomingMessage(message: Message): void {
     const history = ensureHistory(message.conversationId)
-    history.items = mergeMessages(history.items, [message])
+    const known = history.items.find((item) => item.id === message.id)
+    history.items = mergeMessages(history.items, [
+      known ? { ...message, reactions: known.reactions } : message,
+    ])
     useRoomsStore().applyLastMessage(message)
+  }
+
+  function loadedMessage(
+    conversationId: ConversationId,
+    messageId: MessageId,
+  ): Message | undefined {
+    return histories.value[conversationId]?.items.find((message) => message.id === messageId)
+  }
+
+  /** New counts from the hub. A message that is not loaded is ignored: its page brings the reactions. */
+  function applyReactionsChanged(event: ReactionsChangedEvent): void {
+    const message = loadedMessage(event.conversationId, event.messageId)
+    if (message) message.reactions = withCounts(message.reactions, event.reactions)
+  }
+
+  /** The caller's own choice, made in another tab. */
+  function applyMyReactionChanged(event: MyReactionChangedEvent): void {
+    const message = loadedMessage(event.conversationId, event.messageId)
+    if (message) message.reactions = withOwnEmoji(message.reactions, event.emoji)
+  }
+
+  /** The caller picks an emoji; the server decides whether it adds, replaces or removes. Nothing is guessed in advance. */
+  async function chooseReaction(
+    conversationId: ConversationId,
+    messageId: MessageId,
+    emoji: string,
+  ): Promise<void> {
+    const pendingKey = `${conversationId}/${messageId}`
+    // A second click while the first is on its way would be a second toggle.
+    if (pendingReactionKeys.has(pendingKey)) return
+    pendingReactionKeys.add(pendingKey)
+    try {
+      const reactions: Reaction[] = await api.chooseReaction(conversationId, messageId, emoji)
+      const message = loadedMessage(conversationId, messageId)
+      if (message) message.reactions = reactions
+    } finally {
+      pendingReactionKeys.delete(pendingKey)
+    }
   }
 
   /** An author changed their name or avatar: their loaded messages show the new profile. */
@@ -146,6 +202,9 @@ export const useMessagesStore = defineStore('messages', () => {
     loadOlder,
     refreshLatest,
     applyIncomingMessage,
+    applyReactionsChanged,
+    applyMyReactionChanged,
+    chooseReaction,
     applyProfileChange,
     reset,
   }

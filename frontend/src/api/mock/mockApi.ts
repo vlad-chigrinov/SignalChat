@@ -4,6 +4,7 @@ import type { ConversationId, CursorPage, Message, UserId } from '../types'
 
 import { mockError } from './mockErrors'
 import { requireMember, sharedMockStore } from './mockHistories'
+import { chooseReaction, withReactions } from './mockReactions'
 import {
   acceptRequest,
   declineRequest,
@@ -108,11 +109,14 @@ export function createMockApi(options: MockApiOptions = {}): ChatApi {
       const end = parseCursor(before, history.length)
       const start = Math.max(0, end - limit)
       const page: CursorPage<Message> = {
-        items: history.slice(start, end),
+        items: withReactions(store, history.slice(start, end), callerId()),
         nextCursor: start > 0 ? String(start) : null,
       }
       return delay(page)
     },
+
+    chooseReaction: (conversationId, messageId, emoji) =>
+      delay(chooseReaction(sharedMockStore(), callerId(), conversationId, messageId, emoji)),
 
     getOnlineUserIds: () => delay([...mockOnlineUserIds]),
 
