@@ -1,21 +1,31 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
 import type { Message, UserId } from '@/api'
 
+import { buildTimeline, type RoomNotice } from '@/utils/timeline'
+
 import MessageItem from './MessageItem.vue'
+import SystemNotice from './SystemNotice.vue'
 
 /** Distance from the top that triggers loading the previous page. */
 const LOAD_OLDER_THRESHOLD_PX = 48
 /** Within this distance from the bottom, new messages keep the view pinned to the end. */
 const STICK_TO_BOTTOM_THRESHOLD_PX = 80
 
-const props = defineProps<{
-  messages: Message[]
-  hasMore: boolean
-  isLoading: boolean
-  currentUserId: UserId | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    messages: Message[]
+    hasMore: boolean
+    isLoading: boolean
+    currentUserId: UserId | null
+    /** "Member joined" lines shown among the messages by time; they are not part of the history. */
+    notices?: readonly RoomNotice[]
+  }>(),
+  { notices: () => [] },
+)
+
+const timeline = computed(() => buildTimeline(props.messages, props.notices))
 
 const emit = defineEmits<{ loadOlder: [] }>()
 
@@ -94,6 +104,27 @@ watch(
   { flush: 'post' },
 )
 
+// A notice is not a message, so the watchers above do not see it: keep a reader who sits at the end at the end.
+let noticeWasNearBottom = false
+watch(
+  () => props.notices.length,
+  () => {
+    const element = container.value
+    noticeWasNearBottom =
+      element !== null &&
+      element.scrollHeight - element.scrollTop - element.clientHeight <=
+        STICK_TO_BOTTOM_THRESHOLD_PX
+  },
+  { flush: 'pre' },
+)
+watch(
+  () => props.notices.length,
+  () => {
+    if (noticeWasNearBottom) scrollToBottom()
+  },
+  { flush: 'post' },
+)
+
 onMounted(async () => {
   await nextTick()
   scrollToBottom()
@@ -123,12 +154,14 @@ onMounted(async () => {
       Сообщений пока нет. Напишите первым.
     </p>
 
-    <MessageItem
-      v-for="message in messages"
-      :key="message.id"
-      :message="message"
-      :is-own="message.author.id === currentUserId"
-    />
+    <template v-for="entry in timeline" :key="entry.key">
+      <MessageItem
+        v-if="entry.type === 'message'"
+        :message="entry.message"
+        :is-own="entry.message.author.id === currentUserId"
+      />
+      <SystemNotice v-else :notice="entry.notice" />
+    </template>
   </div>
 </template>
 

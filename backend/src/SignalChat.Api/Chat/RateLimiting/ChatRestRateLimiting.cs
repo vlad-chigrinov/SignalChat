@@ -24,6 +24,7 @@ public static class ChatRestRateLimiting
             AddFixedWindowPolicy(options, ChatRateLimitPolicies.UserSearch, limits.UserSearchPerMinute, ChatRateLimitKey.Of);
             AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomDiscover, limits.RoomDiscoverPerMinute, ChatRateLimitKey.Of);
             AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomMembership, limits.RoomMembershipPerMinute, ChatRateLimitKey.Of);
+            AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomInvite, limits.RoomInvitePerMinute, ChatRateLimitKey.Of);
             AddFixedWindowPolicy(
                 options, ChatRateLimitPolicies.DirectConversationCreate, limits.DirectConversationCreatePerMinute, ChatRateLimitKey.Of);
             AddFixedWindowPolicy(options, ChatRateLimitPolicies.RoomCreate, limits.RoomCreatePerMinute, ChatRateLimitKey.Of);

@@ -6,6 +6,8 @@ import type { DirectConversation, Message, UserSummary } from '@/api'
 import { useAuthStore } from '../auth'
 import { useDirectRequestsStore } from '../directRequests'
 import { useMessagesStore } from '../messages'
+import { useRoomMembersStore } from '../roomMembers'
+import { useRoomNoticesStore } from '../roomNotices'
 import { applyProfileChange } from '../profileSync'
 import { useRoomsStore } from '../rooms'
 import { useUserSearchStore } from '../userSearch'
@@ -113,6 +115,32 @@ describe('applying a profile change everywhere the user is shown', () => {
 describe('auth store own profile', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+  })
+
+  it('renames a room member and a "joined" notice, and leaves others alone', () => {
+    const members = useRoomMembersStore()
+    members.byRoom['room-1'] = {
+      status: 'ready',
+      error: null,
+      items: [
+        { user: ANNA_BEFORE, role: 'owner' },
+        { user: IGOR, role: 'member' },
+      ],
+    }
+    const notices = useRoomNoticesStore()
+    notices.applyMemberJoined({
+      roomId: 'room-1',
+      user: ANNA_BEFORE,
+      joinedAt: '2026-11-02T10:00:00.000Z',
+    })
+
+    applyProfileChange(ANNA_AFTER)
+
+    expect(members.entryOf('room-1').items.map((member) => member.user.displayName)).toEqual([
+      'Анна Новая',
+      'Игорь',
+    ])
+    expect(notices.noticesOf('room-1')[0]?.user).toEqual(ANNA_AFTER)
   })
 
   it('takes the new name and avatar when the change is about the signed-in user', () => {

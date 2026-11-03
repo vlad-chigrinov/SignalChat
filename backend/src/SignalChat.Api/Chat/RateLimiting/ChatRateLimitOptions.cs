@@ -15,6 +15,9 @@ public sealed class ChatRateLimitOptions
     /// <summary>Join and leave share this one limit.</summary>
     public int RoomMembershipPerMinute { get; set; } = 30;
 
+    /// <summary>Invitations into rooms; refused ones count too.</summary>
+    public int RoomInvitePerMinute { get; set; } = 20;
+
     public int DirectConversationCreatePerMinute { get; set; } = 10;
 
     public int RoomCreatePerMinute { get; set; } = 10;
@@ -34,6 +37,7 @@ public sealed class ChatRateLimitOptions
         nameof(UserSearchPerMinute),
         nameof(RoomDiscoverPerMinute),
         nameof(RoomMembershipPerMinute),
+        nameof(RoomInvitePerMinute),
         nameof(DirectConversationCreatePerMinute),
         nameof(RoomCreatePerMinute),
         nameof(ProfileUpdatePerMinute),

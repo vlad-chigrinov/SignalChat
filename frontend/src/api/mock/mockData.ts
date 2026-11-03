@@ -136,7 +136,7 @@ export function createSeedStore(): MockStore {
           memberIds: new Set([me.id]),
         },
       ],
-      // Not a member: shows up only in discovery.
+      // Not a member: shows up only in discovery. Petr, who has no chat with the demo user, is a member.
       [
         'room-chess',
         {
@@ -144,7 +144,7 @@ export function createSeedStore(): MockStore {
           name: 'Шахматы',
           description: 'Партии и разборы',
           ownerId: anna.id,
-          memberIds: new Set([anna.id, igor.id]),
+          memberIds: new Set([anna.id, igor.id, petr.id]),
         },
       ],
     ]),
@@ -171,5 +171,6 @@ export function createSeedStore(): MockStore {
     histories,
     reactions: seedReactions(),
     nextId: 1,
+    serverEventListeners: new Set(),
   }
 }

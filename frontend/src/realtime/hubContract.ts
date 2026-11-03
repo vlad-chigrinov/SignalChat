@@ -8,6 +8,7 @@ import type {
   MessageId,
   PresenceChange,
   ReactionCount,
+  Room,
   UserId,
   UserSummary,
 } from '@/api'
@@ -34,6 +35,8 @@ export const HUB_EVENTS = {
   UserProfileChanged: 'UserProfileChanged',
   ReactionsChanged: 'ReactionsChanged',
   MyReactionChanged: 'MyReactionChanged',
+  RoomMemberJoined: 'RoomMemberJoined',
+  AddedToRoom: 'AddedToRoom',
 } as const
 
 /** The client hides a typing indicator after this long without a new `UserTyping`. */
@@ -106,6 +109,21 @@ export interface MyReactionChangedEvent {
   emoji: string | null
 }
 
+/**
+ * Someone became a member of a room, by joining or by invitation. Sent once, to the connections that have the
+ * room open. Not the same as `UserJoined`, which only says that a connection opened the room's group.
+ */
+export interface RoomMemberJoinedEvent {
+  roomId: ConversationId
+  user: UserSummary
+  joinedAt: string
+}
+
+/** Sent to the invitee's own connections when a member of a room invites them. */
+export interface AddedToRoomEvent {
+  room: Room
+}
+
 /** Payload of each server event the client subscribes to. */
 export interface HubEventMap {
   MessageReceived: Message
@@ -119,6 +137,8 @@ export interface HubEventMap {
   UserProfileChanged: UserSummary
   ReactionsChanged: ReactionsChangedEvent
   MyReactionChanged: MyReactionChangedEvent
+  RoomMemberJoined: RoomMemberJoinedEvent
+  AddedToRoom: AddedToRoomEvent
 }
 
 export type HubEventName = keyof HubEventMap

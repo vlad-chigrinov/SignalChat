@@ -16,3 +16,12 @@ public sealed record DirectRequestReceivedDto(Guid ConversationId, UserSummaryDt
 
 /// <summary>The peer accepted the request. Sent to the initiator's user group; the initiator then calls JoinRoom for the conversation.</summary>
 public sealed record DirectRequestAcceptedDto(Guid ConversationId, UserSummaryDto Peer);
+
+/// <summary>
+/// A user became a member of a room, by joining or by invitation. Unlike <c>UserJoined</c> (a connection opened the
+/// room's group), this is a change of membership and is sent once.
+/// </summary>
+public sealed record RoomMemberJoinedDto(Guid RoomId, UserSummaryDto User, DateTimeOffset JoinedAt);
+
+/// <summary>The invitee was added to <see cref="Room"/>. The client lists the room and may open it at once.</summary>
+public sealed record AddedToRoomDto(RoomDto Room);

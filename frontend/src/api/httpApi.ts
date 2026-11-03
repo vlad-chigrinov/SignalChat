@@ -15,6 +15,7 @@ import type {
   MessageId,
   Reaction,
   Room,
+  RoomMember,
   UserId,
   UserSummary,
 } from './types'
@@ -80,6 +81,14 @@ export const httpApi: ChatApi = {
   joinRoom: (roomId) => requestJson<void>(roomPath(roomId, 'join'), { method: 'POST' }),
 
   leaveRoom: (roomId) => requestJson<void>(roomPath(roomId, 'leave'), { method: 'POST' }),
+
+  listRoomMembers: (roomId) => requestJson<RoomMember[]>(roomPath(roomId, 'members')),
+
+  inviteToRoom: (roomId, userId) =>
+    requestJson<void>(roomPath(roomId, 'invitations'), {
+      method: 'POST',
+      body: jsonBody({ userId }),
+    }),
 
   listDirectConversations: () => requestJson<DirectConversation[]>('/api/direct-conversations'),
 

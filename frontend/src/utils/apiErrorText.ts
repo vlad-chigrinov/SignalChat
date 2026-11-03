@@ -16,6 +16,7 @@ export const API_ERROR_TEXT: Record<ApiErrorCode, string> = {
   dm_request_pending: 'Запрос уже отправлен — ждём ответа.',
   dm_incoming_request_exists: 'Этот пользователь уже написал вам — примите запрос.',
   dm_request_limit_reached: 'Можно отправить не больше 20 запросов, которые ждут ответа.',
+  already_member: 'Этот человек уже в комнате.',
   invalid_display_name: 'Имя: от 1 до 100 символов, без управляющих символов.',
   invalid_avatar: 'Не удалось прочитать картинку. Подойдут JPEG, PNG, GIF или WebP.',
   avatar_too_large: 'Файл слишком большой. Максимум 2 МБ.',

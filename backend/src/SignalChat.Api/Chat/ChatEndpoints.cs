@@ -12,6 +12,7 @@ public static class ChatEndpoints
     {
         var api = endpoints.MapGroup(ApiPrefix).RequireAuthorization();
         api.MapRoomEndpoints();
+        api.MapRoomMemberEndpoints();
         api.MapDirectConversationEndpoints();
         api.MapMessageEndpoints();
         api.MapReactionEndpoints();

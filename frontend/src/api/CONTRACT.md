@@ -29,13 +29,15 @@ and statuses). Change the backend, this file, the types and the mock together.
 
 ## Rooms
 
-| Method | Path                                | Answer                                                                                                                                                                                                                            |
-| ------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/rooms`                        | 200 `Room[]`: the rooms the caller is a member of                                                                                                                                                                                 |
-| GET    | `/api/rooms/discover?query=&limit=` | 200 `Room[]`: rooms the caller is NOT a member of. `lastMessage` is always null. `limit` ≤ 50 (client cap).                                                                                                                       |
-| POST   | `/api/rooms`                        | Body `{ name, description }`. 201 `Room`. 400 `invalid_room_name` (name 3..80 after trim) or `invalid_room_description` (≤ 300). 409 `room_name_taken` (case-insensitive) or `room_limit_reached` (20 rooms owned by the caller). |
-| POST   | `/api/rooms/{id}/join`              | 204. Idempotent. 404 `not_found`.                                                                                                                                                                                                 |
-| POST   | `/api/rooms/{id}/leave`             | 204. 404 `not_found` when not a member. 409 `owner_cannot_leave` while the owner has other members. The last member leaving deletes the room.                                                                                     |
+| Method | Path                                | Answer                                                                                                                                                                                                                                                        |
+| ------ | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/rooms`                        | 200 `Room[]`: the rooms the caller is a member of                                                                                                                                                                                                             |
+| GET    | `/api/rooms/discover?query=&limit=` | 200 `Room[]`: rooms the caller is NOT a member of. `lastMessage` is always null. `limit` ≤ 50 (client cap).                                                                                                                                                   |
+| POST   | `/api/rooms`                        | Body `{ name, description }`. 201 `Room`. 400 `invalid_room_name` (name 3..80 after trim) or `invalid_room_description` (≤ 300). 409 `room_name_taken` (case-insensitive) or `room_limit_reached` (20 rooms owned by the caller).                             |
+| POST   | `/api/rooms/{id}/join`              | 204. Idempotent. 404 `not_found`.                                                                                                                                                                                                                             |
+| GET    | `/api/rooms/{id}/members`           | 200 `RoomMember[]`: `{ user: UserSummary, role: 'owner' \| 'member' }`, the owner first, at most 500. Members only: 404 `not_found` for anyone else. No email.                                                                                                |
+| POST   | `/api/rooms/{id}/invitations`       | Body `{ userId }`. 204: a member adds a chat partner (an accepted direct conversation), with no confirmation. 404 `not_found` for a caller who is not in the room, an unknown user, and a user without an accepted chat (all the same). 409 `already_member`. |
+| POST   | `/api/rooms/{id}/leave`             | 204. 404 `not_found` when not a member. 409 `owner_cannot_leave` while the owner has other members. The last member leaving deletes the room.                                                                                                                 |
 
 ## Direct conversations
 
@@ -142,3 +144,4 @@ treats a failure as "everyone offline". Live changes come through SignalR `Prese
 | `invalid_reaction`           | The reaction is not one of the allowed emoji                                     |
 | `dm_not_accepted`            | The writer of a pending request cannot react (REST); the hub uses it for sending |
 | `rate_limited`               | Too many requests of a limited route (HTTP 429, with `Retry-After`)              |
+| `already_member`             | The invited user is in the room already (HTTP 409)                               |

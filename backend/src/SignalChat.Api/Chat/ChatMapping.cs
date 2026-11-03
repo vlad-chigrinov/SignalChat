@@ -15,6 +15,9 @@ public static class ChatMapping
     public static RoomDto ToDto(RoomSummary room) =>
         new(room.Id, room.Name, room.Description, room.MemberCount, ToDto(room.LastMessage));
 
+    public static RoomMemberDto ToDto(RoomMemberView member) =>
+        new(ToDto(member.User), member.Role == RoomRole.Owner ? RoomRoleNames.Owner : RoomRoleNames.Member);
+
     public static DirectConversationDto ToDto(DirectConversationSummary conversation) =>
         new(conversation.Id, ToDto(conversation.Peer), ToDto(conversation.LastMessage), ToStatusName(conversation.Status));
 

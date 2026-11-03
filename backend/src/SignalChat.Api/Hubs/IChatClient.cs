@@ -19,6 +19,12 @@ public interface IChatClient
 
     Task DirectRequestAccepted(DirectRequestAcceptedDto accepted);
 
+    /// <summary>Someone became a member of a room (sent to the connections that have the room open).</summary>
+    Task RoomMemberJoined(RoomMemberJoinedDto memberEvent);
+
+    /// <summary>The user was added to a room by an invitation (sent to the invitee's personal group).</summary>
+    Task AddedToRoom(AddedToRoomDto addedEvent);
+
     /// <summary>A user with a shared conversation (or the caller, in another tab) changed their name or avatar.</summary>
     Task UserProfileChanged(UserSummaryDto user);
 

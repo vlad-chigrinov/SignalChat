@@ -11,6 +11,7 @@ import type {
   MessageId,
   Reaction,
   Room,
+  RoomMember,
   UserId,
   UserSummary,
 } from './types'
@@ -30,6 +31,13 @@ export interface ChatApi {
   /** Idempotent. */
   joinRoom(roomId: ConversationId): Promise<void>
   leaveRoom(roomId: ConversationId): Promise<void>
+  /** Members of a room the caller is in (the owner first). `not_found` for anyone else. */
+  listRoomMembers(roomId: ConversationId): Promise<RoomMember[]>
+  /**
+   * Adds a chat partner of the caller to the room, with no confirmation. Rejects with `not_found` (the caller is
+   * not in the room, or has no accepted chat with the user) and `already_member`.
+   */
+  inviteToRoom(roomId: ConversationId, userId: UserId): Promise<void>
   /** The caller's accepted chats, plus their own pending requests (status `pending`). */
   listDirectConversations(): Promise<DirectConversation[]>
   /**
