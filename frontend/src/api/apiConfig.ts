@@ -29,5 +29,7 @@ export function attachmentSrc(attachmentUrl: string): string | null {
 /** The same photo as a download: the server then names the file and sends it as an attachment. */
 export function attachmentDownloadSrc(attachmentUrl: string): string | null {
   const src = attachmentSrc(attachmentUrl)
-  return src === null ? null : `${src}${src.includes('?') ? '&' : '?'}download=true`
+  // Only a path on the API has the download variant; an address of the browser's own (a preview) is saved as it is.
+  if (src === null || !attachmentUrl.startsWith('/')) return src
+  return `${src}${src.includes('?') ? '&' : '?'}download=true`
 }

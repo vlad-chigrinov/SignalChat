@@ -99,40 +99,55 @@ function onKeydown(event: KeyboardEvent): void {
       :placeholder="photos.length > 0 ? 'Подпись к фото…' : 'Написать сообщение…'"
       @keydown="onKeydown"
     ></textarea>
-    <button type="submit" class="button" :disabled="!canSend">Отправить</button>
+    <button type="submit" class="button send" :disabled="!canSend">Отправить</button>
     <p v-if="unavailable" class="status" role="status">{{ unavailableReason }}</p>
     <p v-else-if="error" class="error" role="alert">{{ error }}</p>
   </form>
 </template>
 
 <style scoped>
+/* One rounded bar: the attach button, the field and Send sit inside it, photo previews above them. */
 .composer {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--color-border);
+  gap: 4px;
+  align-items: flex-end;
+  margin: 4px 8px 8px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 24px;
   background: var(--color-surface);
+}
+
+.composer:focus-within {
+  border-color: var(--color-accent);
 }
 
 .input {
   flex: 1;
   min-width: 0;
-  padding: 8px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-bg);
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
   color: inherit;
   font: inherit;
+  outline: none;
   /* The height follows the text (useAutosizeTextarea), so there is no manual handle. */
   overflow-y: hidden;
   resize: none;
+}
+
+/* Fully rounded to match the bar; the global button padding is too roomy inside it. */
+.send {
+  padding: 6px 14px;
+  border-radius: 20px;
 }
 
 .error,
 .status {
   flex-basis: 100%;
   margin: 0;
+  padding: 0 10px 4px;
   font-size: 0.875rem;
 }
 

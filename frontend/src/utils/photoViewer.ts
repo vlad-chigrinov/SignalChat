@@ -17,3 +17,15 @@ export function neighbourIndex(index: number, count: number, step: 1 | -1): numb
   const target = index + step
   return target >= 0 && target < count ? target : null
 }
+
+/** A horizontal move shorter than this is a tap or a wobble of the finger, not a swipe. */
+export const SWIPE_MIN_DISTANCE_PX = 50
+/** The move must be this many times longer sideways than up or down, so scrolling gestures do not page the photos. */
+const SWIPE_HORIZONTAL_DOMINANCE = 1.5
+
+/** Which photo a finger move from press to release asks for: left shows the next one, right the previous one. */
+export function swipeStep(deltaX: number, deltaY: number): 1 | -1 | null {
+  if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE_PX) return null
+  if (Math.abs(deltaX) < Math.abs(deltaY) * SWIPE_HORIZONTAL_DOMINANCE) return null
+  return deltaX < 0 ? 1 : -1
+}

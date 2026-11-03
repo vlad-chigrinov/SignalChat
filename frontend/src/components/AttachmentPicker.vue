@@ -35,6 +35,8 @@ function releaseUnused(current: readonly File[]): void {
 watch(
   () => props.files,
   (files) => {
+    // The message belongs to the pick that caused it: once the photos are gone (sent), it goes too.
+    if (files.length === 0) notice.value = null
     previews.value = files.map((file) => ({ file, url: previewOf(file) }))
     releaseUnused(files)
   },
@@ -99,7 +101,23 @@ function remove(index: number): void {
       :disabled="disabled || files.length >= MAX_PHOTOS_PER_MESSAGE"
       @click="openPicker"
     >
-      📎
+      <svg
+        class="icon"
+        viewBox="0 0 24 24"
+        width="22"
+        height="22"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <rect x="3" y="4" width="18" height="16" rx="3" />
+        <circle cx="9" cy="10" r="1.8" />
+        <path d="M3.5 17.5 9 12.5l4 3.6 3-2.6 4.5 4" />
+      </svg>
     </button>
     <p v-if="notice" class="notice" role="alert">{{ notice }}</p>
   </div>
@@ -122,7 +140,7 @@ function remove(index: number): void {
   gap: 8px;
   order: -1;
   margin: 0;
-  padding: 0;
+  padding: 6px 6px 2px;
   list-style: none;
 }
 
@@ -154,15 +172,30 @@ function remove(index: number): void {
   line-height: 1;
 }
 
+/* A round icon button without its own frame: the composer's bar is the frame. */
 .attach {
-  align-self: flex-end;
-  padding: 6px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-bg);
-  color: inherit;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-muted);
   cursor: pointer;
-  font: inherit;
+}
+
+.attach:hover:not(:disabled),
+.attach:focus-visible {
+  background: var(--color-surface-hover);
+  color: var(--color-accent);
+}
+
+.icon {
+  display: block;
 }
 
 .attach:disabled {
@@ -174,6 +207,7 @@ function remove(index: number): void {
   flex-basis: 100%;
   order: 1;
   margin: 0;
+  padding: 0 10px 4px;
   color: var(--color-danger);
   font-size: 0.875rem;
 }

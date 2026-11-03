@@ -2,41 +2,89 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import type { Attachment } from '@/api'
-import { attachmentDownloadSrc, attachmentSrc } from '@/api/apiConfig'
-import { isSideways, neighbourIndex, nextRotation } from '@/utils/photoViewer'
+import { attachmentSrc } from '@/api/apiConfig'
+import { fetchAttachmentFile } from '@/api/attachmentFile'
+import { isSideways, neighbourIndex, nextRotation, swipeStep } from '@/utils/photoViewer'
+import { saveBlob } from '@/utils/saveBlob'
 
 const props = defineProps<{ attachments: Attachment[]; startIndex: number }>()
 const emit = defineEmits<{ close: [] }>()
 
-const FOCUSABLE = 'button:not([disabled]), a[href]'
+const FOCUSABLE = 'button:not([disabled])'
+const DOWNLOAD_FAILED_TEXT = 'Не удалось скачать фото. Попробуйте ещё раз.'
 
 const index = ref(props.startIndex)
 /** Clockwise degrees; only what is drawn turns, the file does not. */
 const rotation = ref(0)
+const isDownloading = ref(false)
+const downloadError = ref<string | null>(null)
 const dialog = ref<HTMLElement | null>(null)
 /** Where the focus was before the viewer opened; it goes back there on close. */
 const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null
 
 const current = computed(() => props.attachments[index.value])
 const src = computed(() => (current.value ? attachmentSrc(current.value.url) : null))
-const downloadSrc = computed(() =>
-  current.value ? attachmentDownloadSrc(current.value.url) : null,
-)
-const previousIndex = computed(() => neighbourIndex(index.value, props.attachments.length, -1))
-const nextIndex = computed(() => neighbourIndex(index.value, props.attachments.length, 1))
 const title = computed(() => `Фото ${index.value + 1} из ${props.attachments.length}`)
 
 // A new photo starts upright.
 watch(index, () => {
   rotation.value = 0
+  downloadError.value = null
 })
 
-function go(target: number | null): void {
+function step(direction: 1 | -1): void {
+  const target = neighbourIndex(index.value, props.attachments.length, direction)
   if (target !== null) index.value = target
+}
+
+/** Saves the original under its file name. The bytes are fetched here, so the page is never left. */
+async function download(): Promise<void> {
+  const photo = current.value
+  if (!photo || isDownloading.value) return
+  isDownloading.value = true
+  downloadError.value = null
+  try {
+    saveBlob(await fetchAttachmentFile(photo.url), photo.fileName)
+  } catch {
+    downloadError.value = DOWNLOAD_FAILED_TEXT
+  } finally {
+    isDownloading.value = false
+  }
 }
 
 function close(): void {
   emit('close')
+}
+
+// Swiping: where the finger (or the mouse) went down, and whether the last press turned into a swipe.
+let pressX = 0
+let pressY = 0
+let isPressed = false
+let didSwipe = false
+
+function onPointerDown(event: PointerEvent): void {
+  isPressed = true
+  didSwipe = false
+  pressX = event.clientX
+  pressY = event.clientY
+}
+
+function onPointerUp(event: PointerEvent): void {
+  if (!isPressed) return
+  isPressed = false
+  const direction = swipeStep(event.clientX - pressX, event.clientY - pressY)
+  if (direction === null) return
+  didSwipe = true
+  step(direction)
+}
+
+/** A click outside the photo closes the viewer, but not the click that ends a swipe. */
+function onStageClick(): void {
+  if (didSwipe) {
+    didSwipe = false
+    return
+  }
+  close()
 }
 
 function focusables(): HTMLElement[] {
@@ -49,9 +97,9 @@ function onKeydown(event: KeyboardEvent): void {
     event.preventDefault()
     close()
   } else if (event.key === 'ArrowLeft') {
-    go(previousIndex.value)
+    step(-1)
   } else if (event.key === 'ArrowRight') {
-    go(nextIndex.value)
+    step(1)
   } else if (event.key === 'Tab') {
     const items = focusables()
     const first = items[0]
@@ -86,44 +134,18 @@ onBeforeUnmount(() => {
       role="dialog"
       aria-modal="true"
       aria-label="Просмотр фото"
+      tabindex="-1"
       data-testid="photo-viewer"
       @keydown="onKeydown"
-      @click.self="close"
     >
-      <header class="bar" @click.self="close">
-        <span class="counter" role="status">{{ title }}</span>
-        <div class="actions">
-          <button
-            type="button"
-            class="action"
-            aria-label="Перевернуть"
-            @click="rotation = nextRotation(rotation)"
-          >
-            Перевернуть
-          </button>
-          <a
-            v-if="downloadSrc && current"
-            class="action"
-            :href="downloadSrc"
-            :download="current.fileName"
-            aria-label="Скачать"
-          >
-            Скачать
-          </a>
-          <button type="button" class="action" aria-label="Закрыть" @click="close">Закрыть</button>
-        </div>
-      </header>
-
-      <div class="stage" @click.self="close">
-        <button
-          type="button"
-          class="nav previous"
-          aria-label="Предыдущее фото"
-          :disabled="previousIndex === null"
-          @click="go(previousIndex)"
-        >
-          ‹
-        </button>
+      <div
+        class="stage"
+        data-testid="photo-viewer-stage"
+        @pointerdown="onPointerDown"
+        @pointerup="onPointerUp"
+        @pointercancel="isPressed = false"
+        @click.self="onStageClick"
+      >
         <img
           v-if="src && current"
           class="picture"
@@ -131,19 +153,53 @@ onBeforeUnmount(() => {
           :style="{ transform: `rotate(${rotation}deg)` }"
           :src="src"
           :alt="current.fileName"
+          draggable="false"
           data-testid="photo-viewer-image"
           :data-rotation="rotation"
         />
-        <button
-          type="button"
-          class="nav next"
-          aria-label="Следующее фото"
-          :disabled="nextIndex === null"
-          @click="go(nextIndex)"
-        >
-          ›
-        </button>
       </div>
+
+      <p v-if="downloadError" class="download-error" role="alert">{{ downloadError }}</p>
+
+      <footer class="bar">
+        <span class="counter" role="status">{{ title }}</span>
+        <div class="actions">
+          <button
+            type="button"
+            class="action icon-action"
+            aria-label="Перевернуть"
+            title="Перевернуть"
+            @click="rotation = nextRotation(rotation)"
+          >
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M21 12a9 9 0 1 1-3-6.7" />
+              <path d="M21 4v5h-5" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="action"
+            aria-label="Скачать"
+            :disabled="isDownloading"
+            @click="download"
+          >
+            Скачать
+          </button>
+          <button type="button" class="action" aria-label="Закрыть" @click="close">Закрыть</button>
+        </div>
+      </footer>
     </div>
   </Teleport>
 </template>
@@ -151,6 +207,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .viewer {
   position: fixed;
+  outline: none;
   inset: 0;
   z-index: 50;
   display: flex;
@@ -159,13 +216,37 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
+/* The photo is at most 80% of the screen each way; a horizontal swipe on this area pages through the photos. */
+.stage {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+}
+
+.picture {
+  max-width: 80vw;
+  max-height: 80vh;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+/* A quarter turn swaps width and height on screen, so the bounds swap with them. */
+.picture.sideways {
+  max-width: 80vh;
+  max-height: 80vw;
+}
+
 .bar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
 }
 
 .actions {
@@ -174,8 +255,7 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
-.action,
-.nav {
+.action {
   padding: 6px 12px;
   border: 1px solid rgb(255 255 255 / 40%);
   border-radius: 8px;
@@ -183,47 +263,33 @@ onBeforeUnmount(() => {
   color: inherit;
   cursor: pointer;
   font: inherit;
-  text-decoration: none;
 }
 
-.action:hover,
-.nav:hover:not(:disabled) {
+.icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+}
+
+.icon {
+  display: block;
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.action:hover:not(:disabled) {
   background: rgb(255 255 255 / 25%);
 }
 
-.nav:disabled {
-  cursor: default;
-  opacity: 0.3;
-}
-
-.stage {
-  display: flex;
-  flex: 1;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 0;
-  padding: 0 8px 16px;
-}
-
-.nav {
-  flex: none;
-  font-size: 1.5rem;
-  line-height: 1;
-}
-
-.picture {
-  min-width: 0;
-  max-width: calc(100% - 120px);
-  max-height: 100%;
-  object-fit: contain;
-  transition: transform 0.2s ease;
-}
-
-/* A quarter turn swaps width and height on screen, so the bounds swap with them. */
-.picture.sideways {
-  max-width: calc(100vh - 120px);
-  max-height: calc(100vw - 120px);
+.download-error {
+  margin: 0;
+  padding: 0 16px 4px;
+  color: #ffb4a8;
+  font-size: 0.875rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
