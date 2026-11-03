@@ -42,6 +42,11 @@ export function resolveAvatarSrc(origin: string, avatarUrl: string | null): stri
   return joinApiUrl(origin, avatarUrl)
 }
 
+/** Where a photo is loaded from: the path the API names (`/api/attachments/...`) on the API's own origin. */
+export function resolveAttachmentSrc(origin: string, attachmentUrl: string): string | null {
+  return resolveAvatarSrc(origin, attachmentUrl)
+}
+
 /** The session cookie goes to another origin only when the API really is on another origin. */
 export function credentialsFor(origin: string): RequestCredentials {
   return origin === '' ? 'same-origin' : 'include'

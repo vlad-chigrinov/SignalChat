@@ -109,7 +109,14 @@ export function historyOf(store: MockStore, conversationId: ConversationId): Mes
 
 export function previewOf(store: MockStore, conversationId: ConversationId): MessagePreview | null {
   const last = historyOf(store, conversationId).at(-1)
-  return last ? { authorId: last.author.id, text: last.text, sentAt: last.sentAt } : null
+  return last
+    ? {
+        authorId: last.author.id,
+        text: last.text,
+        sentAt: last.sentAt,
+        photoCount: last.attachments.length,
+      }
+    : null
 }
 
 export function userSummaryOf(store: MockStore, userId: UserId): UserSummary | undefined {

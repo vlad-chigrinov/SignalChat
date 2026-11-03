@@ -41,7 +41,17 @@ export interface ChatApi {
   declineRequest(conversationId: ConversationId): Promise<void>
   /** Other users matched by display name. Never carries an email. */
   searchUsers(query: string, limit: number): Promise<UserSummary[]>
-  /** History only. Messages are sent through the realtime hub (C1), never over REST. */
+  /**
+   * Sends a message of 1..9 photos with an optional caption, as one multipart request. The photos leave the browser
+   * only here, never when they are picked. The server broadcasts the message over the hub like any other and answers
+   * with it. Rejects with `invalid_attachments`, `invalid_image`, `attachment_too_large` or `storage_unavailable`.
+   */
+  sendPhotoMessage(
+    conversationId: ConversationId,
+    caption: string,
+    photos: readonly File[],
+  ): Promise<Message>
+  /** History only. Text messages are sent through the realtime hub (C1), photo messages through sendPhotoMessage. */
   getMessages(conversationId: ConversationId, query: HistoryQuery): Promise<CursorPage<Message>>
   getOnlineUserIds(): Promise<UserId[]>
   /** The caller's own name. Rejects with `invalid_display_name`. Answers with the updated profile. */

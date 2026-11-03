@@ -6,7 +6,7 @@ import { mergeMessages } from '../mergeMessages'
 
 function message(id: string, sentAt: string): Message {
   const author = { id: 'u1', displayName: 'U', avatarUrl: null }
-  return { id, conversationId: 'c1', author, text: id, sentAt }
+  return { id, conversationId: 'c1', author, text: id, sentAt, attachments: [] }
 }
 
 describe('mergeMessages', () => {

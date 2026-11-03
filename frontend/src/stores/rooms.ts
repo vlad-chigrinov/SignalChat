@@ -72,6 +72,7 @@ export const useRoomsStore = defineStore('rooms', () => {
       authorId: message.author.id,
       text: message.text,
       sentAt: message.sentAt,
+      photoCount: message.attachments.length,
     }
   }
 

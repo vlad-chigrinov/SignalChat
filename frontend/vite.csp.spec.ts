@@ -31,8 +31,8 @@ describe('content security policy', () => {
     expect(scriptSources).not.toContain("'unsafe-eval'")
   })
 
-  it('allows Google avatar images and nothing else external', () => {
-    expect(policy.get('img-src')).toEqual(["'self'", 'https://*.googleusercontent.com'])
+  it('allows Google avatars and local previews of picked photos, and nothing else external', () => {
+    expect(policy.get('img-src')).toEqual(["'self'", 'blob:', 'https://*.googleusercontent.com'])
   })
 
   it('blocks plugins and base-tag hijacking', () => {
@@ -59,6 +59,7 @@ describe('content security policy with an API on its own origin', () => {
   it('also lets the app show avatars that the API serves, and no other host', () => {
     expect(policy.get('img-src')).toEqual([
       "'self'",
+      'blob:',
       'https://*.googleusercontent.com',
       'https://chat-api.vlados.tech',
     ])

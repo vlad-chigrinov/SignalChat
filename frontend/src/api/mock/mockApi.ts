@@ -12,6 +12,7 @@ import {
   sendDirectRequest,
 } from './mockDirects'
 import { createRoom, discoverRooms, joinRoom, leaveRoom, listMyRooms } from './mockRooms'
+import { sendPhotoMessage } from './mockPhotos'
 import { changeDisplayName, resetAvatar, uploadAvatar } from './mockProfile'
 import { searchUsers } from './mockUsers'
 import { mockOnlineUserIds } from './mockData'
@@ -100,6 +101,17 @@ export function createMockApi(options: MockApiOptions = {}): ChatApi {
       delay(
         searchUsers(sharedMockStore(), callerId(), query, clampLimit(limit, USER_SEARCH_MAX_LIMIT)),
       ),
+
+    async sendPhotoMessage(conversationId, caption, photos) {
+      const message = await sendPhotoMessage(
+        sharedMockStore(),
+        callerId(),
+        conversationId,
+        caption,
+        photos,
+      )
+      return delay(message)
+    },
 
     async getMessages(conversationId: ConversationId, { before, limit }) {
       const store = sharedMockStore()

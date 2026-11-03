@@ -99,6 +99,7 @@ export function sendDirectRequest(
     author,
     text,
     sentAt: new Date().toISOString(),
+    attachments: [],
   })
   return toDirect(store, direct, userId)
 }

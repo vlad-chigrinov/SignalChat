@@ -19,6 +19,10 @@ export const API_ERROR_TEXT: Record<ApiErrorCode, string> = {
   invalid_display_name: 'Имя: от 1 до 100 символов, без управляющих символов.',
   invalid_avatar: 'Не удалось прочитать картинку. Подойдут JPEG, PNG, GIF или WebP.',
   avatar_too_large: 'Файл слишком большой. Максимум 2 МБ.',
+  invalid_attachments: 'Прикрепите от 1 до 9 фото.',
+  invalid_image: 'Не удалось прочитать одно из фото. Подойдут JPEG, PNG, GIF или WebP.',
+  attachment_too_large: 'Фото слишком большие: не больше 12 МБ на файл и 48 МБ всего.',
+  storage_unavailable: 'Хранилище фото сейчас недоступно. Попробуйте позже.',
 }
 
 export function isApiErrorCode(code: string): code is ApiErrorCode {

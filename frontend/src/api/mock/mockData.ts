@@ -49,6 +49,7 @@ function buildHistory(conversationId: string, authors: UserSummary[], count: num
     author: authors[index % authors.length] ?? mockCurrentUser,
     text: `${SAMPLE_LINES[index % SAMPLE_LINES.length]} (#${index + 1})`,
     sentAt: minutesAgo((count - index) * MESSAGE_SPACING_MINUTES),
+    attachments: [],
   }))
 }
 
@@ -70,6 +71,7 @@ export function createSeedStore(): MockStore {
           author: olga,
           text: 'Здравствуйте! Можно обсудить релиз?',
           sentAt: minutesAgo(REQUEST_AGE_MINUTES),
+          attachments: [],
         },
       ],
     ],

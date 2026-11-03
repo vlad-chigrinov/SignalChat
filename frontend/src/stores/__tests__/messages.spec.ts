@@ -12,6 +12,7 @@ function message(index: number): Message {
     author: { id: 'u1', displayName: 'U', avatarUrl: null },
     text: `text ${index}`,
     sentAt: new Date(Date.UTC(2026, 0, 1, 10, index)).toISOString(),
+    attachments: [],
   }
 }
 
@@ -61,5 +62,55 @@ describe('messages store', () => {
     expect(history.error).not.toBeNull()
     expect(history.hasLoadedLatest).toBe(false)
     expect(history.isLoading).toBe(false)
+  })
+
+  it('sends photos through the API and puts the answer in the history and the list preview', async () => {
+    const sent: Message = {
+      ...message(7),
+      text: 'закат',
+      attachments: [
+        {
+          id: 'a1',
+          width: 4,
+          height: 3,
+          thumbnailWidth: 4,
+          thumbnailHeight: 3,
+          sizeBytes: 3,
+          contentType: 'image/webp',
+          fileName: 'a.webp',
+          url: '/api/attachments/a1/original',
+          thumbnailUrl: '/api/attachments/a1/thumbnail',
+        },
+      ],
+    }
+    const sendPhotoMessage = vi.spyOn(api, 'sendPhotoMessage').mockResolvedValue(sent)
+    const store = useMessagesStore()
+    const photos = [new File([new Uint8Array([1])], 'a.png', { type: 'image/png' })]
+
+    const result = await store.sendPhotos('room-1', 'закат', photos)
+
+    expect(sendPhotoMessage).toHaveBeenCalledWith('room-1', 'закат', photos)
+    expect(result).toBe(sent)
+    expect(store.historyOf('room-1').items).toEqual([sent])
+  })
+
+  it('keeps one copy when the hub delivers the photo message that REST already returned', async () => {
+    const sent: Message = { ...message(8), attachments: [] }
+    vi.spyOn(api, 'sendPhotoMessage').mockResolvedValue(sent)
+    const store = useMessagesStore()
+
+    await store.sendPhotos('room-1', '', [])
+    store.applyIncomingMessage(sent)
+
+    expect(store.historyOf('room-1').items).toHaveLength(1)
+  })
+
+  it('does not touch the history when the server refuses the photos', async () => {
+    vi.spyOn(api, 'sendPhotoMessage').mockRejectedValue(new Error('refused'))
+    const store = useMessagesStore()
+
+    await expect(store.sendPhotos('room-1', '', [])).rejects.toThrow('refused')
+
+    expect(store.historyOf('room-1').items).toEqual([])
   })
 })

@@ -126,6 +126,20 @@ export const useMessagesStore = defineStore('messages', () => {
     useRoomsStore().applyLastMessage(message)
   }
 
+  /**
+   * Sends a photo message. The photos leave the browser here and nowhere earlier. The answer is the message as the
+   * server stored it; it goes into the history at once, and the same message coming back over the hub is merged by id.
+   */
+  async function sendPhotos(
+    conversationId: ConversationId,
+    caption: string,
+    photos: readonly File[],
+  ): Promise<Message> {
+    const message = await api.sendPhotoMessage(conversationId, caption, photos)
+    applyIncomingMessage(message)
+    return message
+  }
+
   /** An author changed their name or avatar: their loaded messages show the new profile. */
   function applyProfileChange(user: UserSummary): void {
     for (const history of Object.values(histories.value)) {
@@ -146,6 +160,7 @@ export const useMessagesStore = defineStore('messages', () => {
     loadOlder,
     refreshLatest,
     applyIncomingMessage,
+    sendPhotos,
     applyProfileChange,
     reset,
   }

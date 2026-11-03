@@ -16,6 +16,12 @@ export const AVATAR_ALLOWED_TYPES: readonly string[] = [
   'image/webp',
 ]
 
+/** Photo limits. The server checks the same ones (and the content); the client only saves a round trip. */
+export const MAX_PHOTOS_PER_MESSAGE = 9
+export const PHOTO_MAX_FILE_BYTES = 12 * BYTES_PER_MEBIBYTE
+/** What the picker offers and the client accepts; the server decides by content. */
+export const PHOTO_ALLOWED_TYPES: readonly string[] = AVATAR_ALLOWED_TYPES
+
 /** Keeps a requested page size within 1..max. Non-integers are rounded down. */
 export function clampLimit(requested: number, max: number): number {
   if (!Number.isFinite(requested)) return max

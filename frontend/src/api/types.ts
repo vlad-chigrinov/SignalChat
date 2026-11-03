@@ -21,6 +21,8 @@ export interface MessagePreview {
   authorId: UserId
   text: string
   sentAt: string
+  /** Photos of the message; 0 for a text. `text` is then empty or the caption. */
+  photoCount: number
 }
 
 export interface Room {
@@ -56,12 +58,32 @@ export interface IncomingDirectRequest {
 
 export type Conversation = Room | DirectConversation
 
+/**
+ * One photo of a message. `url` and `thumbnailUrl` are paths on the API that need the session (a photo is never public);
+ * show them through `attachmentSrc`. The sizes let the feed reserve the space before the picture has loaded.
+ */
+export interface Attachment {
+  id: string
+  width: number
+  height: number
+  thumbnailWidth: number
+  thumbnailHeight: number
+  sizeBytes: number
+  contentType: string
+  fileName: string
+  url: string
+  thumbnailUrl: string
+}
+
 export interface Message {
   id: MessageId
   conversationId: ConversationId
   author: UserSummary
+  /** The text, or the caption of a photo message (may be empty then). */
   text: string
   sentAt: string
+  /** Empty for a text message; 1..9 photos otherwise. */
+  attachments: Attachment[]
 }
 
 /** One page of history. `items` are chronological (oldest first). */
@@ -105,6 +127,10 @@ export type ApiErrorCode =
   | 'invalid_display_name'
   | 'invalid_avatar'
   | 'avatar_too_large'
+  | 'invalid_attachments'
+  | 'invalid_image'
+  | 'attachment_too_large'
+  | 'storage_unavailable'
 
 export interface CreateRoomInput {
   name: string

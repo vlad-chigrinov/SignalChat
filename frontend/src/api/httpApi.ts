@@ -99,6 +99,17 @@ export const httpApi: ChatApi = {
     return requestJson<UserSummary[]>(`/api/users/search?${params}`)
   },
 
+  // Caption first, then the photos in order: the server reads the parts as they arrive and stops at the first bad one.
+  sendPhotoMessage(conversationId, caption, photos) {
+    const form = new FormData()
+    form.append('text', caption)
+    for (const photo of photos) form.append('files', photo, photo.name)
+    return requestJson<Message>(`${conversationPath(conversationId)}/photos`, {
+      method: 'POST',
+      body: form,
+    })
+  },
+
   getMessages(conversationId, { before, limit }) {
     const params = new URLSearchParams({ limit: String(clampLimit(limit, HISTORY_MAX_LIMIT)) })
     if (before) params.set('before', before)

@@ -5,6 +5,7 @@ import type { Conversation } from '@/api'
 import { ROUTE_NAMES } from '@/router/routes'
 import { usePresenceStore } from '@/stores/presence'
 import { formatMessageTime } from '@/utils/formatTime'
+import { previewText } from '@/utils/messagePreview'
 
 import PresenceDot from './PresenceDot.vue'
 import UserAvatar from './UserAvatar.vue'
@@ -21,7 +22,7 @@ const title = computed(() =>
 const preview = computed(() => {
   const conversation = props.conversation
   if (conversation.kind === 'direct' && conversation.status === 'pending') return 'Ожидает ответа'
-  return conversation.lastMessage?.text ?? 'Сообщений пока нет'
+  return conversation.lastMessage ? previewText(conversation.lastMessage) : 'Сообщений пока нет'
 })
 const sentAt = computed(() => {
   const last = props.conversation.lastMessage

@@ -20,7 +20,12 @@ function acceptedChatOf(request: IncomingDirectRequest): DirectConversation {
     id: request.id,
     peer: request.from,
     status: 'accepted',
-    lastMessage: { authorId: request.from.id, text: request.text, sentAt: request.createdAt },
+    lastMessage: {
+      authorId: request.from.id,
+      text: request.text,
+      sentAt: request.createdAt,
+      photoCount: 0,
+    },
   }
 }
 

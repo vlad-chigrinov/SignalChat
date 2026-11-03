@@ -93,6 +93,7 @@ export class FakeChatHub implements ChatHub {
       author,
       text,
       sentAt: new Date().toISOString(),
+      attachments: [],
     }
     historyOf(sharedMockStore(), conversationId).push(message)
     this.emitMessage(message)

@@ -15,7 +15,8 @@ function cspDirectives(apiOrigin: string): Record<string, readonly string[]> {
     'script-src': ["'self'"],
     'style-src': ["'self'"],
     // Avatars come from Google or, when the API has an origin of its own, from the API (see UserAvatar.vue).
-    'img-src': ["'self'", 'https://*.googleusercontent.com', ...apiSources],
+    // blob: is the preview of a photo the user picked: the browser's own copy, shown before anything is sent.
+    'img-src': ["'self'", 'blob:', 'https://*.googleusercontent.com', ...apiSources],
     'font-src': ["'self'"],
     'connect-src': ["'self'", ...connectSources],
     'object-src': ["'none'"],

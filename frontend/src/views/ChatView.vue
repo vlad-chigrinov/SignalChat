@@ -93,6 +93,10 @@ async function send(text: string): Promise<void> {
   await realtime.sendMessage(props.id, text)
 }
 
+async function sendPhotos(caption: string, photos: File[]): Promise<void> {
+  await messages.sendPhotos(props.id, caption, photos)
+}
+
 // Navigate first, then forget the room: the view must not outlive its room in the store.
 // Leaving unmounts this view, and the watch cleanup above closes its hub conversation.
 async function leftRoom(roomId: string): Promise<void> {
@@ -146,6 +150,7 @@ const notifyTyping = () => realtime.notifyTyping(props.id)
       <TypingIndicator :text="typingText" />
       <MessageComposer
         :send="send"
+        :send-photos="sendPhotos"
         :unavailable="isSendingUnavailable || isAwaitingAnswer"
         :unavailable-reason="composerBlockedReason"
         @typing="notifyTyping"

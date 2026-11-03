@@ -87,10 +87,30 @@ A profile change reaches the other clients with the SignalR event `UserProfileCh
   string to pass as `before` for the previous page, or `null` at the start.
 - 400 `invalid_cursor` for a bad cursor. 404 `not_found` for a non-member.
 
-**Sending is not over REST.** There is no `POST` for messages. Messages go only through the
+`Message` carries `attachments` (empty for a text; 1..9 photos for a photo message, whose `text` is then the caption and may be
+empty). Each `Attachment` has `id`, `width`/`height`, `thumbnailWidth`/`thumbnailHeight`, `sizeBytes`, `contentType`, `fileName`,
+`url` and `thumbnailUrl`. The two URLs are paths on the API (`/api/attachments/{id}/original|thumbnail`) and need the session
+cookie, so they are shown through `attachmentSrc` (joined to the API origin like an avatar). `MessagePreview.photoCount` is the
+number of photos of the last message (0 for a text); the list shows "Фото" / "Фото ×N" for it.
+
+**Text is not sent over REST.** There is no `POST` for a text message. Text goes only through the
 SignalR hub `SendMessage` (see `realtime/`). The client also checks the text itself
 (1..2000 characters after trim); the hub rejects `invalid_message` for empty or too long text.
 The text is plain text; the UI never renders HTML.
+
+### Photo messages
+
+`POST /api/conversations/{id}/messages/photos`: `multipart/form-data` with the caption in `text` (first, may be empty) and
+one `files` part per photo, 1..9, at most 12 MiB each and 48 MiB together. The browser sets the multipart `Content-Type`
+(the client never does). Photos leave the browser only on this call, never when they are picked.
+
+- 201 `Message` with `attachments`. The same message is broadcast with the hub event `MessageReceived` to the conversation, so
+  the sender's own copy arrives twice and is merged by id.
+- 400 `invalid_attachments` (none, more than 9, malformed body) or `invalid_image` (not a usable picture), 413
+  `attachment_too_large`, 503 `storage_unavailable`, 404 `not_found` for a non-member or a direct chat not accepted yet,
+  429 when the rate limit is hit.
+- `GET /api/attachments/{id}/original|thumbnail` streams the file for a member only (404 otherwise); add `?download=true` for a
+  download under the original file name.
 
 ## Presence (expected, owned by #6)
 
@@ -100,22 +120,26 @@ treats a failure as "everyone offline". Live changes come through SignalR `Prese
 
 ## Error codes
 
-| Code                         | Meaning                                                                          |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| `not_found`                  | Missing, or not a member (never distinguished)                                   |
-| `invalid_cursor`             | History cursor is malformed                                                      |
-| `invalid_limit`              | `limit` out of range                                                             |
-| `query_too_short`            | User search query shorter than 2 characters                                      |
-| `invalid_room_name`          | Room name not 3..80 characters after trim                                        |
-| `invalid_room_description`   | Room description longer than 300 characters                                      |
-| `room_name_taken`            | Another room has the same name (case-insensitive)                                |
-| `room_limit_reached`         | The caller already owns 20 rooms                                                 |
-| `owner_cannot_leave`         | The owner cannot leave while other members remain                                |
-| `self_conversation`          | A direct conversation with oneself                                               |
-| `invalid_message`            | Message empty or longer than 2000 (hub, and the first message of a request)      |
-| `dm_request_pending`         | The caller's own request to this user waits for an answer (also after a decline) |
-| `dm_incoming_request_exists` | This user already wrote to the caller: answer that request first                 |
-| `invalid_display_name`       | Profile name empty after trim, over 100 characters, or with forbidden characters |
-| `invalid_avatar`             | The upload is not a JPEG, PNG, GIF or WebP, is damaged, or is over 4096 px       |
-| `avatar_too_large`           | The upload is over 2 MiB (HTTP 413)                                              |
-| `dm_request_limit_reached`   | The caller has 20 requests waiting for an answer                                 |
+| Code                         | Meaning                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `not_found`                  | Missing, or not a member (never distinguished)                                    |
+| `invalid_cursor`             | History cursor is malformed                                                       |
+| `invalid_limit`              | `limit` out of range                                                              |
+| `query_too_short`            | User search query shorter than 2 characters                                       |
+| `invalid_room_name`          | Room name not 3..80 characters after trim                                         |
+| `invalid_room_description`   | Room description longer than 300 characters                                       |
+| `room_name_taken`            | Another room has the same name (case-insensitive)                                 |
+| `room_limit_reached`         | The caller already owns 20 rooms                                                  |
+| `owner_cannot_leave`         | The owner cannot leave while other members remain                                 |
+| `self_conversation`          | A direct conversation with oneself                                                |
+| `invalid_message`            | Message empty or longer than 2000 (hub, and the first message of a request)       |
+| `dm_request_pending`         | The caller's own request to this user waits for an answer (also after a decline)  |
+| `dm_incoming_request_exists` | This user already wrote to the caller: answer that request first                  |
+| `invalid_display_name`       | Profile name empty after trim, over 100 characters, or with forbidden characters  |
+| `invalid_avatar`             | The upload is not a JPEG, PNG, GIF or WebP, is damaged, or is over 4096 px        |
+| `avatar_too_large`           | The upload is over 2 MiB (HTTP 413)                                               |
+| `dm_request_limit_reached`   | The caller has 20 requests waiting for an answer                                  |
+| `invalid_attachments`        | A photo message without photos, with more than 9, or not a well-formed upload     |
+| `invalid_image`              | A photo is not a JPEG, PNG, GIF or WebP, is damaged, or is beyond the pixel limit |
+| `attachment_too_large`       | A photo is over 12 MiB or the photos together are over 48 MiB (HTTP 413)          |
+| `storage_unavailable`        | The photo store is down; nothing of the message was kept (HTTP 503)               |

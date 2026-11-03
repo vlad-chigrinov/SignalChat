@@ -4,17 +4,25 @@ import { computed, ref, watch } from 'vue'
 import { MAX_MESSAGE_LENGTH } from '@/stores/messages'
 import { errorMessage } from '@/utils/errorMessage'
 
+import AttachmentPicker from './AttachmentPicker.vue'
+
 const DEFAULT_UNAVAILABLE_REASON = 'Нет соединения. Отправка недоступна.'
 
 const props = withDefaults(
   defineProps<{
     send: (text: string) => Promise<void>
+    /** Sends the chosen photos with the draft as their caption. The photos are uploaded here, not when they are picked. */
+    sendPhotos?: (caption: string, photos: File[]) => Promise<void>
     /** True while the realtime connection is down or the chat is not accepted yet: sending is blocked. */
     unavailable?: boolean
     /** What the user reads while sending is blocked. */
     unavailableReason?: string
   }>(),
-  { unavailable: false, unavailableReason: DEFAULT_UNAVAILABLE_REASON },
+  {
+    sendPhotos: undefined,
+    unavailable: false,
+    unavailableReason: DEFAULT_UNAVAILABLE_REASON,
+  },
 )
 /** Emitted while the user types a non-empty draft. The parent throttles it into a hub call. */
 const emit = defineEmits<{ typing: [] }>()
@@ -22,10 +30,11 @@ const emit = defineEmits<{ typing: [] }>()
 const draft = ref('')
 const isSending = ref(false)
 const error = ref<string | null>(null)
+const photos = ref<File[]>([])
 
-const canSend = computed(
-  () => !props.unavailable && draft.value.trim().length > 0 && !isSending.value,
-)
+// A photo message needs no text: the draft is only its caption.
+const hasContent = computed(() => photos.value.length > 0 || draft.value.trim().length > 0)
+const canSend = computed(() => !props.unavailable && hasContent.value && !isSending.value)
 
 // Watching the draft (not the input event) also covers the reset after a send, which is empty.
 watch(draft, (value) => {
@@ -37,7 +46,12 @@ async function submit(): Promise<void> {
   isSending.value = true
   error.value = null
   try {
-    await props.send(draft.value)
+    if (photos.value.length > 0 && props.sendPhotos) {
+      await props.sendPhotos(draft.value.trim(), photos.value)
+      photos.value = []
+    } else {
+      await props.send(draft.value)
+    }
     draft.value = ''
   } catch (caught) {
     error.value = errorMessage(caught)
@@ -57,6 +71,11 @@ function onKeydown(event: KeyboardEvent): void {
 <template>
   <form class="composer" @submit.prevent="submit">
     <label class="sr-only" for="message-draft">Сообщение</label>
+    <AttachmentPicker
+      v-if="sendPhotos"
+      v-model:files="photos"
+      :disabled="unavailable || isSending"
+    />
     <textarea
       id="message-draft"
       v-model="draft"
@@ -64,7 +83,7 @@ function onKeydown(event: KeyboardEvent): void {
       rows="1"
       :maxlength="MAX_MESSAGE_LENGTH"
       :disabled="unavailable"
-      placeholder="Написать сообщение…"
+      :placeholder="photos.length > 0 ? 'Подпись к фото…' : 'Написать сообщение…'"
       @keydown="onKeydown"
     ></textarea>
     <button type="submit" class="button" :disabled="!canSend">Отправить</button>
