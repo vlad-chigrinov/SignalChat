@@ -293,23 +293,6 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("SignalChat.Domain.Users.UserAvatar", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<byte[]>("Image")
-                        .IsRequired()
-                        .HasColumnType("bytea");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("UserId");
-
-                    b.ToTable("user_avatars", (string)null);
-                });
-
             modelBuilder.Entity("SignalChat.Domain.Chat.Message", b =>
                 {
                     b.HasOne("SignalChat.Domain.Chat.DirectConversation", null)
@@ -346,15 +329,6 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                     b.HasOne("SignalChat.Domain.Chat.Room", null)
                         .WithMany()
                         .HasForeignKey("RoomId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("SignalChat.Domain.Users.UserAvatar", b =>
-                {
-                    b.HasOne("SignalChat.Domain.Users.User", null)
-                        .WithOne()
-                        .HasForeignKey("SignalChat.Domain.Users.UserAvatar", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

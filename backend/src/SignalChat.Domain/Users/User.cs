@@ -102,7 +102,7 @@ public sealed class User
         HasCustomDisplayName = true;
     }
 
-    /// <summary>The user's own picture becomes the avatar. The bytes live in <see cref="UserAvatar"/>.</summary>
+    /// <summary>The user's own picture becomes the avatar. The bytes live in the object store.</summary>
     public void UseUploadedAvatar()
     {
         AvatarVersion++;

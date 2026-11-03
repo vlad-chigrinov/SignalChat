@@ -1,4 +1,5 @@
 using SignalChat.Domain.Users;
+using SignalChat.Infrastructure.Media;
 
 namespace SignalChat.Infrastructure.Users;
 
@@ -17,6 +18,6 @@ public interface IProfileService
     /// <summary>Drops the uploaded picture; the avatar is the one from Google again.</summary>
     Task<User> ResetAvatarAsync(Guid userId, CancellationToken cancellationToken);
 
-    /// <summary>The stored avatar bytes (WebP), or null when the user has no uploaded avatar.</summary>
-    Task<byte[]?> FindAvatarImageAsync(Guid userId, CancellationToken cancellationToken);
+    /// <summary>Opens the stored avatar (WebP), or returns null when the user has none. The caller disposes the result.</summary>
+    Task<MediaObject?> OpenAvatarAsync(Guid userId, CancellationToken cancellationToken);
 }

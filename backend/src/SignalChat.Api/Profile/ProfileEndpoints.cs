@@ -83,14 +83,15 @@ public static class ProfileEndpoints
     private static async Task<IResult> GetAvatarAsync(
         Guid userId, HttpContext http, IProfileService profiles, CancellationToken cancellationToken)
     {
-        var image = await profiles.FindAvatarImageAsync(userId, cancellationToken);
+        var image = await profiles.OpenAvatarAsync(userId, cancellationToken);
         if (image is null)
         {
             return Results.NotFound();
         }
 
         http.Response.Headers.CacheControl = ImmutableForAYear;
-        return Results.File(image, AvatarLimits.StoredContentType);
+        http.Response.RegisterForDisposeAsync(image);
+        return Results.Stream(image.Content, AvatarLimits.StoredContentType);
     }
 
     private static async Task<IResult> RespondAsync(User user, ProfileChangeNotifier notifier, CancellationToken cancellationToken)

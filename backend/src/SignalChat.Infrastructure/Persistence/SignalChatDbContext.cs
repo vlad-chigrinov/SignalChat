@@ -13,7 +13,6 @@ public sealed class SignalChatDbContext(
 {
     public DbSet<User> Users => Set<User>();
 
-    public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
 
     public DbSet<Room> Rooms => Set<Room>();
 
@@ -29,7 +28,6 @@ public sealed class SignalChatDbContext(
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new UserConfiguration(personalDataCipher));
-        modelBuilder.ApplyConfiguration(new UserAvatarConfiguration());
         modelBuilder.ApplyConfiguration(new RoomConfiguration());
         modelBuilder.ApplyConfiguration(new RoomMemberConfiguration());
         modelBuilder.ApplyConfiguration(new DirectConversationConfiguration());

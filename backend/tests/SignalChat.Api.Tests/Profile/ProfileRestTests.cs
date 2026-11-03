@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SignalChat.Api.Auth;
 using SignalChat.Api.Tests.Chat;
 using SignalChat.Api.Tests.Infrastructure;
+using SignalChat.Infrastructure.Media;
 using SignalChat.Infrastructure.Persistence;
 using SignalChat.Infrastructure.Users;
 
@@ -251,6 +252,18 @@ public sealed class ProfileRestTests(SignalChatApiFactory factory) : IClassFixtu
     }
 
     [Fact]
+    public async Task UploadAvatar_KeepsThePictureInTheObjectStore_AndNotInTheDatabase()
+    {
+        var (user, cookie) = await factory.CreateSessionAsync(Profile("in-store", GoogleAvatar));
+        using var client = factory.CreateApiClient();
+
+        await client.SendAsync(Put("/api/me/avatar", cookie, PictureContent(TestImages.Png())));
+
+        var store = (InMemoryMediaStorage)factory.Services.GetRequiredService<IMediaStorage>();
+        Assert.Contains($"avatars/{user.Id:N}.webp", store.Keys);
+    }
+
+    [Fact]
     public async Task ResetAvatar_ReturnsToTheGoogleOne_AndDeletesTheStoredPicture()
     {
         var (user, cookie) = await factory.CreateSessionAsync(Profile("reset", GoogleAvatar));
@@ -263,9 +276,8 @@ public sealed class ProfileRestTests(SignalChatApiFactory factory) : IClassFixtu
         Assert.Equal(GoogleAvatar, (await ChatHttp.ReadJsonAsync(response)).GetProperty("avatarUrl").GetString());
         var served = await client.SendAsync(ChatHttp.Get($"/api/users/{user.Id}/avatar", cookie));
         Assert.Equal(HttpStatusCode.NotFound, served.StatusCode);
-        using var scope = factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<SignalChatDbContext>();
-        Assert.False(await db.UserAvatars.AnyAsync(avatar => avatar.UserId == user.Id));
+        var store = (InMemoryMediaStorage)factory.Services.GetRequiredService<IMediaStorage>();
+        Assert.DoesNotContain($"avatars/{user.Id:N}.webp", store.Keys);
     }
 
     [Fact]
