@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 
+import { useAutosizeTextarea } from '@/composables/useAutosizeTextarea'
 import { MAX_MESSAGE_LENGTH } from '@/stores/messages'
+import { draftAfterFailedSend } from '@/utils/composerDraft'
 import { errorMessage } from '@/utils/errorMessage'
 
 const DEFAULT_UNAVAILABLE_REASON = 'Нет соединения. Отправка недоступна.'
@@ -20,6 +22,8 @@ const props = withDefaults(
 const emit = defineEmits<{ typing: [] }>()
 
 const draft = ref('')
+const field = useTemplateRef<HTMLTextAreaElement>('field')
+useAutosizeTextarea(field, draft)
 const isSending = ref(false)
 const error = ref<string | null>(null)
 
@@ -32,14 +36,22 @@ watch(draft, (value) => {
   if (value.trim().length > 0) emit('typing')
 })
 
+/**
+ * The field is cleared and refocused at once, so the user never sees a sent text hang there
+ * while the hub answers; `isSending` keeps a double click or Enter from sending it twice.
+ * If the send fails the text comes back (see `draftAfterFailedSend`) and the error is shown.
+ */
 async function submit(): Promise<void> {
   if (!canSend.value) return
+  const text = draft.value
   isSending.value = true
   error.value = null
+  draft.value = ''
+  field.value?.focus()
   try {
-    await props.send(draft.value)
-    draft.value = ''
+    await props.send(text)
   } catch (caught) {
+    draft.value = draftAfterFailedSend(text, draft.value)
     error.value = errorMessage(caught)
   } finally {
     isSending.value = false
@@ -59,6 +71,7 @@ function onKeydown(event: KeyboardEvent): void {
     <label class="sr-only" for="message-draft">Сообщение</label>
     <textarea
       id="message-draft"
+      ref="field"
       v-model="draft"
       class="input"
       rows="1"
@@ -86,14 +99,15 @@ function onKeydown(event: KeyboardEvent): void {
 .input {
   flex: 1;
   min-width: 0;
-  max-height: 160px;
   padding: 8px 12px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg);
   color: inherit;
   font: inherit;
-  resize: vertical;
+  /* The height follows the text (useAutosizeTextarea), so there is no manual handle. */
+  overflow-y: hidden;
+  resize: none;
 }
 
 .error,

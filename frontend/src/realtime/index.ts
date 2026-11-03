@@ -3,12 +3,17 @@ import { useAuthStore } from '@/stores/auth'
 
 import type { ChatHub } from './chatHub'
 import { FakeChatHub } from './fakeChatHub'
+import { exposeFakeHubControls } from './fakeHubControls'
 import { createRealtimeService, type RealtimeService } from './realtimeService'
 import { SignalrChatHub } from './signalrChatHub'
 
 /** The one place that decides which hub implementation the app uses. */
 export function createChatHub(): ChatHub {
-  if (USE_MOCK_API) return new FakeChatHub({ currentUser: () => useAuthStore().user })
+  if (USE_MOCK_API) {
+    const hub = new FakeChatHub({ currentUser: () => useAuthStore().user })
+    exposeFakeHubControls(hub)
+    return hub
+  }
   return new SignalrChatHub()
 }
 
