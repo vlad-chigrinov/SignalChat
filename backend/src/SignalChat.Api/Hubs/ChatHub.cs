@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using SignalRSwaggerGen.Attributes;
 using SignalChat.Api.Auth;
 using SignalChat.Api.Chat;
 using SignalChat.Api.Chat.Dto;
@@ -16,6 +17,7 @@ namespace SignalChat.Api.Hubs;
 /// The send path lives in <see cref="ChatMessaging"/>.
 /// </summary>
 [Authorize]
+[SignalRHub(Route)]
 public sealed class ChatHub(
     IHubConnectionRegistry connections,
     HubSessionGuard sessionGuard,

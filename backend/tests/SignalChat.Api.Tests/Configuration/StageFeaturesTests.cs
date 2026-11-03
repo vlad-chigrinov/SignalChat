@@ -23,6 +23,18 @@ public sealed class StageFeaturesTests
     }
 
     [Fact]
+    public async Task Swagger_InDevelopment_DescribesTheSignalRHubMethods()
+    {
+        using var factory = new DevelopmentApiFactory();
+        using var client = factory.CreateApiClient();
+
+        var body = await client.GetStringAsync("/swagger/v1/swagger.json");
+
+        Assert.Contains("/hubs/chat/JoinRoom", body);
+        Assert.Contains("/hubs/chat/SendMessage", body);
+    }
+
+    [Fact]
     public async Task SwaggerUi_InDevelopment_IsNotBlockedByTheApiCsp()
     {
         using var factory = new DevelopmentApiFactory();

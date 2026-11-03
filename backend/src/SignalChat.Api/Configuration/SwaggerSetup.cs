@@ -1,9 +1,10 @@
 using Microsoft.OpenApi;
+using SignalChat.Api.Hubs;
 
 namespace SignalChat.Api.Configuration;
 
 /// <summary>
-/// Swagger (OpenAPI description and UI) for the stage environment. Mapped only in Development, so it is
+/// Swagger (OpenAPI description and UI) for the stage environment, with the SignalR hub described by SignalRSwaggerGen. Mapped only in Development, so it is
 /// never part of a production host. Calls from the UI use the session cookie: sign in through <c>/auth/login</c> first.
 /// </summary>
 public static class SwaggerSetup
@@ -17,7 +18,10 @@ public static class SwaggerSetup
     {
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
-            options.SwaggerDoc(DocumentName, new OpenApiInfo { Title = Title, Version = DocumentName }));
+        {
+            options.SwaggerDoc(DocumentName, new OpenApiInfo { Title = Title, Version = DocumentName });
+            options.AddSignalRSwaggerGen(signalR => signalR.ScanAssembly(typeof(ChatHub).Assembly));
+        });
         return services;
     }
 
