@@ -19,9 +19,9 @@ public static class LastMessageLoader
 
         var rows = await dbContext.Messages.AsNoTracking()
             .Where(message => messageIds.Contains(message.Id))
-            .Select(message => new { message.Id, message.AuthorId, message.Text, message.CreatedAt })
+            .Select(message => new { message.Id, message.AuthorId, message.Text, message.CreatedAt, PhotoCount = message.Attachments.Count })
             .ToListAsync(cancellationToken);
-        return rows.ToDictionary(row => row.Id, row => new LastMessageView(row.AuthorId, row.Text, row.CreatedAt));
+        return rows.ToDictionary(row => row.Id, row => new LastMessageView(row.AuthorId, row.Text, row.CreatedAt, row.PhotoCount));
     }
 
     public static LastMessageView? Find(IReadOnlyDictionary<Guid, LastMessageView> loaded, Guid? messageId) =>

@@ -1,5 +1,6 @@
 using SignalChat.Domain.Chat;
 using SignalChat.Domain.Users;
+using SignalChat.Infrastructure.Media;
 using SkiaSharp;
 
 namespace SignalChat.Infrastructure.Users;
@@ -32,7 +33,7 @@ public sealed class AvatarImageProcessor : IAvatarImageProcessor
         }
 
         using var decoded = Decode(codec);
-        using var oriented = AvatarOrientation.Apply(decoded, codec.EncodedOrigin);
+        using var oriented = ImageOrientation.Apply(decoded, codec.EncodedOrigin);
         return CropToSquareAndEncode(oriented);
     }
 

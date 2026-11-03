@@ -49,6 +49,44 @@ internal static class TestImages
         return [.. jpeg[..2], .. segment, .. jpeg[2..]];
     }
 
+    /// <summary>
+    /// A PNG that is only its signature, a header that claims the given size and the end marker: no pixels at all, so it
+    /// stands for a decompression bomb without costing memory in the test.
+    /// </summary>
+    public static byte[] PngHeaderOnly(int width, int height)
+    {
+        byte[] header =
+        [
+            .. BigEndian(width), .. BigEndian(height),
+            8, 2, 0, 0, 0, // 8 bits per channel, truecolour, default compression, filter and interlace
+        ];
+        return [.. PngSignature, .. PngChunk("IHDR", header), .. PngChunk("IEND", [])];
+    }
+
+    private static readonly byte[] PngSignature = [0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A];
+
+    private static byte[] PngChunk(string type, byte[] data)
+    {
+        byte[] typeAndData = [.. System.Text.Encoding.ASCII.GetBytes(type), .. data];
+        return [.. BigEndian(data.Length), .. typeAndData, .. BigEndian((int)Crc32(typeAndData))];
+    }
+
+    private static byte[] BigEndian(int value) => [(byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value];
+
+    private static uint Crc32(byte[] bytes)
+    {
+        var crc = 0xFFFFFFFFu;
+        foreach (var value in bytes)
+        {
+            crc ^= value;
+            for (var bit = 0; bit < 8; bit++)
+            {
+                crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xEDB88320u : crc >> 1;
+            }
+        }
+        return ~crc;
+    }
+
     private static SKBitmap Solid(int width, int height)
     {
         var bitmap = new SKBitmap(width, height);

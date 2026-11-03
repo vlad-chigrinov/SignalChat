@@ -1,4 +1,5 @@
 using SignalChat.Api.Chat.Dto;
+using SignalChat.Api.Chat.Photos;
 using SignalChat.Domain.Chat;
 using SignalChat.Infrastructure.Chat;
 
@@ -10,7 +11,7 @@ public static class ChatMapping
     public static UserSummaryDto ToDto(ChatUser user) => new(user.Id, user.DisplayName, user.AvatarUrl);
 
     public static LastMessageDto? ToDto(LastMessageView? message) =>
-        message is null ? null : new LastMessageDto(message.AuthorId, message.Text, message.SentAt);
+        message is null ? null : new LastMessageDto(message.AuthorId, message.Text, message.SentAt, message.PhotoCount);
 
     public static RoomDto ToDto(RoomSummary room) =>
         new(room.Id, room.Name, room.Description, room.MemberCount, ToDto(room.LastMessage));
@@ -27,7 +28,14 @@ public static class ChatMapping
             : DirectConversationStatusNames.Pending;
 
     public static MessageDto ToDto(MessageView message) =>
-        new(message.Id, message.ConversationId, ToDto(message.Author), message.Text, message.SentAt);
+        new(message.Id, message.ConversationId, ToDto(message.Author), message.Text, message.SentAt,
+            message.Attachments.Select(ToDto).ToList());
+
+    public static AttachmentDto ToDto(AttachmentView attachment) =>
+        new(attachment.Id, attachment.Width, attachment.Height, attachment.ThumbnailWidth, attachment.ThumbnailHeight,
+            attachment.SizeBytes, attachment.ContentType, attachment.FileName,
+            AttachmentRoutes.PathOf(attachment.Id, AttachmentVariant.Original),
+            AttachmentRoutes.PathOf(attachment.Id, AttachmentVariant.Thumbnail));
 
     public static MessagePageDto ToDto(MessagePage page) =>
         new(page.Items.Select(ToDto).ToList(), page.NextCursor);

@@ -28,8 +28,14 @@ public sealed class ProductionWithoutKeysApiFactory : SignalChatApiFactory
     protected override string EnvironmentName => "Production";
 }
 
+/// <summary>Production with a key ring directory but no object store settings: the host must refuse to start.</summary>
+public sealed class ProductionWithoutObjectStoreApiFactory : ProductionWithKeysApiFactory
+{
+    protected override bool ObjectStoreConfigured => false;
+}
+
 /// <summary>Production with a key ring directory on a volume: the host starts and answers.</summary>
-public sealed class ProductionWithKeysApiFactory : SignalChatApiFactory
+public class ProductionWithKeysApiFactory : SignalChatApiFactory
 {
     protected override string EnvironmentName => "Production";
 

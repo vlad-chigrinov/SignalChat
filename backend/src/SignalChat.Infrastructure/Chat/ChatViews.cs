@@ -5,8 +5,8 @@ namespace SignalChat.Infrastructure.Chat;
 /// <summary>Public profile of a user as shown in chat. Never carries the email.</summary>
 public sealed record ChatUser(Guid Id, string DisplayName, string? AvatarUrl);
 
-/// <summary>The newest visible message of a conversation, as the list views show it.</summary>
-public sealed record LastMessageView(Guid AuthorId, string Text, DateTimeOffset SentAt);
+/// <summary>The newest visible message of a conversation, as the list views show it. <see cref="PhotoCount"/> is 0 for a text.</summary>
+public sealed record LastMessageView(Guid AuthorId, string Text, DateTimeOffset SentAt, int PhotoCount = 0);
 
 public sealed record RoomSummary(
     Guid Id,
@@ -50,12 +50,27 @@ public sealed record DirectRequestOutcome(
 /// <summary>The answer to an accepted request: the initiator learns who accepted.</summary>
 public sealed record DirectRequestResponse(Guid ConversationId, Guid InitiatorId, ChatUser Responder);
 
+/// <summary>One photo of a message. The files themselves are read through <see cref="IAttachmentReader"/>, never by a key.</summary>
+public sealed record AttachmentView(
+    Guid Id,
+    int Width,
+    int Height,
+    int ThumbnailWidth,
+    int ThumbnailHeight,
+    long SizeBytes,
+    string ContentType,
+    string FileName);
+
 public sealed record MessageView(
     Guid Id,
     Guid ConversationId,
     ChatUser Author,
     string Text,
-    DateTimeOffset SentAt);
+    DateTimeOffset SentAt)
+{
+    /// <summary>The photos in display order; empty for a text message.</summary>
+    public IReadOnlyList<AttachmentView> Attachments { get; init; } = [];
+}
 
 /// <summary>One history page, oldest message first. <see cref="NextCursor"/> is null on the last page.</summary>
 public sealed record MessagePage(IReadOnlyList<MessageView> Items, string? NextCursor);

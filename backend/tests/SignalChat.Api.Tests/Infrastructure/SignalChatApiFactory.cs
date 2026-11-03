@@ -17,6 +17,7 @@ using SignalChat.Api.Auth;
 using SignalChat.Api.Chat.RateLimiting;
 using SignalChat.Api.Configuration;
 using SignalChat.Domain.Users;
+using SignalChat.Infrastructure.Media;
 using SignalChat.Infrastructure.Persistence;
 using SignalChat.Infrastructure.Users;
 
@@ -61,6 +62,9 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
     protected virtual string EnvironmentName => "Testing";
 
     protected virtual bool E2eTestAuthEnabled => false;
+
+    /// <summary>Whether a production host is given the settings of the S3 object store; a production host refuses to start without them.</summary>
+    protected virtual bool ObjectStoreConfigured => true;
 
     /// <summary>Requests per minute allowed by every REST rate limit. Lowered only by a factory built to test the limit.</summary>
     protected virtual int RestPermitsPerMinute => UnboundedRestPermitsPerMinute;
@@ -122,6 +126,13 @@ public class SignalChatApiFactory : WebApplicationFactory<Program>
         builder.UseSetting(GoogleSettings.ClientIdKey, GoogleConfigured ? FakeGoogle.ClientId : string.Empty);
         builder.UseSetting(GoogleSettings.ClientSecretKey, GoogleConfigured ? FakeGoogle.ClientSecret : string.Empty);
         ApplyRestRateLimits(builder);
+        if (ObjectStoreConfigured && EnvironmentName == "Production")
+        {
+            builder.UseSetting(MediaStorageSettings.EndpointKey, "http://localhost:1");
+            builder.UseSetting(MediaStorageSettings.BucketKey, "test-media");
+            builder.UseSetting(MediaStorageSettings.AccessKeyKey, "test-access");
+            builder.UseSetting(MediaStorageSettings.SecretKeyKey, "test-secret");
+        }
 
         builder.ConfigureTestServices(services =>
         {

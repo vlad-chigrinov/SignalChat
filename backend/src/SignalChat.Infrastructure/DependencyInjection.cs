@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SignalChat.Infrastructure.Chat;
+using SignalChat.Infrastructure.Media;
 using SignalChat.Infrastructure.Persistence;
 using SignalChat.Infrastructure.Security;
 using SignalChat.Infrastructure.Users;
@@ -25,6 +26,8 @@ public static class DependencyInjection
         services.AddScoped<IUserAccountService, UserAccountService>();
         services.AddSingleton<IAvatarImageProcessor, AvatarImageProcessor>();
         services.AddScoped<IProfileService, ProfileService>();
+        // Production-like hosts (the ones that also require TLS) must have a real object store for photos.
+        services.AddMediaStorage(configuration, requireObjectStore: requireTlsByDefault);
         services.AddChatServices();
 
         services.AddHealthChecks()

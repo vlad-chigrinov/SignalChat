@@ -49,6 +49,7 @@ public sealed class MessageStore(
 
         // limit + 1 rows tell whether an older page exists without a second query.
         var rows = await query
+            .Include(message => message.Attachments)
             .OrderByDescending(message => message.CreatedAt)
             .ThenByDescending(message => message.Id)
             .Take(limit + 1)
@@ -59,7 +60,10 @@ public sealed class MessageStore(
         var authors = await LoadAuthorsAsync(pageRows.Select(row => row.AuthorId).Distinct().ToList(), cancellationToken);
 
         var items = pageRows
-            .Select(row => new MessageView(row.Id, conversation.Id, authors[row.AuthorId], row.Text, row.CreatedAt))
+            .Select(row => new MessageView(row.Id, conversation.Id, authors[row.AuthorId], row.Text, row.CreatedAt)
+            {
+                Attachments = AttachmentMapping.ToViews(row.Attachments),
+            })
             .ToList();
         var nextCursor = hasOlder && pageRows.Count > 0
             ? new MessageCursor(pageRows[0].CreatedAt, pageRows[0].Id).Encode()

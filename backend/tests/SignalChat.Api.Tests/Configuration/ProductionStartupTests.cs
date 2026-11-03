@@ -1,6 +1,7 @@
 using System.Net;
 using SignalChat.Api.Configuration;
 using SignalChat.Api.Tests.Infrastructure;
+using SignalChat.Infrastructure.Media;
 
 namespace SignalChat.Api.Tests.Configuration;
 
@@ -15,6 +16,16 @@ public sealed class ProductionStartupTests
         var error = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
 
         Assert.Contains(DataProtectionSettings.KeysPathKey, error.ToString());
+    }
+
+    [Fact]
+    public void Production_WithoutAnObjectStore_StopsTheApplicationAtStartup()
+    {
+        using var factory = new ProductionWithoutObjectStoreApiFactory();
+
+        var error = Assert.ThrowsAny<Exception>(() => factory.CreateClient());
+
+        Assert.Contains(MediaStorageSettings.EndpointKey, error.ToString());
     }
 
     [Fact]

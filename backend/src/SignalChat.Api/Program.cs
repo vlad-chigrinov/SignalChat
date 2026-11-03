@@ -1,5 +1,6 @@
 using SignalChat.Api.Auth;
 using SignalChat.Api.Chat;
+using SignalChat.Api.Chat.Photos;
 using SignalChat.Api.Chat.RateLimiting;
 using SignalChat.Api.Configuration;
 using SignalChat.Api.Health;
@@ -31,6 +32,7 @@ builder.Services.AddFrontendCors(frontend);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ChatRuleExceptionHandler>();
 builder.Services.AddChatSignalR();
+builder.Services.AddPhotoMessages();
 builder.Services.AddChatRestRateLimiting(builder.Configuration);
 if (builder.Environment.IsDevelopment())
 {

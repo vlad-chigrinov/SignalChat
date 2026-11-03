@@ -6,7 +6,10 @@ using SignalChat.Infrastructure.Chat;
 
 namespace SignalChat.Api.Chat;
 
-/// <summary>Read-only history. There is deliberately no POST route: messages are sent through the hub (#6).</summary>
+/// <summary>
+/// Read-only history. There is deliberately no POST route here: text is sent through the hub (#6), and photos through
+/// <see cref="Photos.PhotoMessageEndpoints"/>.
+/// </summary>
 public static class MessageEndpoints
 {
     public static RouteGroupBuilder MapMessageEndpoints(this RouteGroupBuilder api)

@@ -9,6 +9,8 @@ public static class ChatServiceRegistration
         services.AddScoped<IConversationAccess, ConversationAccess>();
         services.AddScoped<IPeerDirectory, PeerDirectory>();
         services.AddScoped<IMessageStore, MessageStore>();
+        services.AddScoped<IPhotoMessageService, PhotoMessageService>();
+        services.AddScoped<IAttachmentReader, AttachmentReader>();
         services.AddScoped<IRoomService, RoomService>();
         services.AddScoped<IDirectConversationService, DirectConversationService>();
         services.AddScoped<IUserDirectory, UserDirectory>();

@@ -1,12 +1,16 @@
 namespace SignalChat.Domain.Chat;
 
 /// <summary>
-/// A text message in exactly one conversation: a room (<see cref="RoomId"/>) or a direct conversation
-/// (<see cref="DirectConversationId"/>). Deleting is soft: a deleted message is hidden from history.
+/// A message in exactly one conversation: a room (<see cref="RoomId"/>) or a direct conversation
+/// (<see cref="DirectConversationId"/>). It is a text, or photos with an optional caption. Deleting is soft: a deleted
+/// message is hidden from history.
 /// </summary>
 public sealed class Message
 {
     public const int MaxTextLength = 2000;
+    public const int MaxPhotos = 9;
+
+    private readonly List<MessageAttachment> _attachments = [];
 
     private Message()
     {
@@ -30,27 +34,41 @@ public sealed class Message
 
     public DateTimeOffset? DeletedAt { get; private set; }
 
+    /// <summary>The photos of the message in display order; empty for a text message.</summary>
+    public IReadOnlyList<MessageAttachment> Attachments => _attachments;
+
     /// <summary>The room or direct conversation this message belongs to.</summary>
     public Guid ConversationId => RoomId ?? DirectConversationId ?? Guid.Empty;
 
-    public static Message InRoom(Guid roomId, Guid authorId, string? text, DateTimeOffset now) =>
-        Create(roomId, null, authorId, text, now);
+    /// <summary>A text, or with <paramref name="photos"/> a photo message whose caption (the text) may be empty.</summary>
+    public static Message InRoom(
+        Guid roomId, Guid authorId, string? text, DateTimeOffset now, IReadOnlyList<PhotoDraft>? photos = null) =>
+        Create(roomId, null, authorId, text, now, photos);
 
-    public static Message InDirectConversation(Guid directConversationId, Guid authorId, string? text, DateTimeOffset now) =>
-        Create(null, directConversationId, authorId, text, now);
+    public static Message InDirectConversation(
+        Guid directConversationId, Guid authorId, string? text, DateTimeOffset now, IReadOnlyList<PhotoDraft>? photos = null) =>
+        Create(null, directConversationId, authorId, text, now, photos);
 
     /// <summary>Soft delete: the message stays in storage and disappears from history. Idempotent.</summary>
     public void Delete(DateTimeOffset now) => DeletedAt ??= now;
 
-    private static Message Create(Guid? roomId, Guid? directConversationId, Guid authorId, string? text, DateTimeOffset now)
+    private static Message Create(
+        Guid? roomId, Guid? directConversationId, Guid authorId, string? text, DateTimeOffset now, IReadOnlyList<PhotoDraft>? photos)
     {
-        var trimmed = (text ?? string.Empty).Trim();
-        if (trimmed.Length == 0 || trimmed.Length > MaxTextLength)
+        var photoCount = photos?.Count ?? 0;
+        if (photos is not null && (photoCount == 0 || photoCount > MaxPhotos))
         {
-            throw new ChatRuleException("invalid_message", $"Message must be 1..{MaxTextLength} characters after trimming.");
+            throw new ChatRuleException(AttachmentErrorCodes.InvalidAttachments, $"A message carries 1..{MaxPhotos} photos.");
         }
 
-        return new Message
+        var trimmed = (text ?? string.Empty).Trim();
+        var minTextLength = photoCount > 0 ? 0 : 1;
+        if (trimmed.Length < minTextLength || trimmed.Length > MaxTextLength)
+        {
+            throw new ChatRuleException("invalid_message", $"Message must be {minTextLength}..{MaxTextLength} characters after trimming.");
+        }
+
+        var message = new Message
         {
             Id = Guid.CreateVersion7(now),
             RoomId = roomId,
@@ -59,5 +77,10 @@ public sealed class Message
             Text = trimmed,
             CreatedAt = now,
         };
+        for (var position = 0; position < photoCount; position++)
+        {
+            message._attachments.Add(MessageAttachment.From(message.Id, position, photos![position]));
+        }
+        return message;
     }
 }

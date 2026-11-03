@@ -100,6 +100,60 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("SignalChat.Domain.Chat.MessageAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("OriginalKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ThumbnailHeight")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ThumbnailKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ThumbnailWidth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId", "Position")
+                        .IsUnique();
+
+                    b.ToTable("message_attachments", (string)null);
+                });
+
             modelBuilder.Entity("SignalChat.Domain.Chat.Room", b =>
                 {
                     b.Property<Guid>("Id")
@@ -248,6 +302,15 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
+            modelBuilder.Entity("SignalChat.Domain.Chat.MessageAttachment", b =>
+                {
+                    b.HasOne("SignalChat.Domain.Chat.Message", null)
+                        .WithMany("Attachments")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SignalChat.Domain.Chat.RoomMember", b =>
                 {
                     b.HasOne("SignalChat.Domain.Chat.Room", null)
@@ -264,6 +327,11 @@ namespace SignalChat.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SignalChat.Domain.Users.UserAvatar", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SignalChat.Domain.Chat.Message", b =>
+                {
+                    b.Navigation("Attachments");
                 });
 #pragma warning restore 612, 618
         }
