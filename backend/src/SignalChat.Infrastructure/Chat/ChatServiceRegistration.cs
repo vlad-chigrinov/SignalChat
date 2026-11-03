@@ -10,6 +10,7 @@ public static class ChatServiceRegistration
         services.AddScoped<IPeerDirectory, PeerDirectory>();
         services.AddScoped<IMessageStore, MessageStore>();
         services.AddScoped<IRoomService, RoomService>();
+        services.AddScoped<IRoomMemberService, RoomMemberService>();
         services.AddScoped<IDirectConversationService, DirectConversationService>();
         services.AddScoped<IUserDirectory, UserDirectory>();
         return services;

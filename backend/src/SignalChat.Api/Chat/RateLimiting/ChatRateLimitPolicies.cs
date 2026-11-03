@@ -6,6 +6,7 @@ public static class ChatRateLimitPolicies
     public const string UserSearch = "users-search";
     public const string RoomDiscover = "rooms-discover";
     public const string RoomMembership = "rooms-membership";
+    public const string RoomInvite = "rooms-invite";
     public const string DirectConversationCreate = "direct-conversations-create";
     public const string RoomCreate = "rooms-create";
     public const string ProfileUpdate = "profile-update";
