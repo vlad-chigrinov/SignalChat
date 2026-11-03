@@ -8,6 +8,7 @@ import {
 } from '@/api/mock/mockHistories'
 
 import { HubCallError, type ChatHub, type Unsubscribe } from './chatHub'
+import type { FakeHubControls } from './fakeHubControls'
 import {
   type AddedToRoomEvent,
   type ConnectionState,
@@ -15,6 +16,7 @@ import {
   type DirectRequestAcceptedEvent,
   type DirectRequestReceivedEvent,
   type HubEventMap,
+  type HubErrorCode,
   type HubEventName,
   type RoomMemberJoinedEvent,
   type UserTypingEvent,
@@ -34,7 +36,7 @@ export interface FakeChatHubOptions {
  * listener (sender included).
  * The `emit*`, `simulate*` helpers play the server's part in tests.
  */
-export class FakeChatHub implements ChatHub {
+export class FakeChatHub implements ChatHub, FakeHubControls {
   private state: ConnectionState = 'disconnected'
   private readonly joined = new Set<ConversationId>()
   private readonly stateListeners = new Set<(state: ConnectionState) => void>()
@@ -55,6 +57,9 @@ export class FakeChatHub implements ChatHub {
   private readonly typingSent: ConversationId[] = []
   private readonly queuedStartFailures: HubCallError[] = []
   private stopServerEvents: (() => void) | null = null
+  private readonly queuedSendFailures: HubCallError[] = []
+  private sendGate: Promise<void> | null = null
+  private openSendGate: (() => void) | null = null
   private startCount = 0
   private sentCounter = 0
 
@@ -100,6 +105,9 @@ export class FakeChatHub implements ChatHub {
     this.requireConnected()
     const author = this.requireCaller()
     requireWritable(author.id, conversationId)
+    if (this.sendGate) await this.sendGate
+    const failure = this.queuedSendFailures.shift()
+    if (failure) throw failure
     this.sentCounter += 1
     const message: Message = {
       id: `fake-${this.sentCounter}`,
@@ -198,6 +206,23 @@ export class FakeChatHub implements ChatHub {
   /** Test helper: the next `start()` calls fail with these errors, one per call, in order. */
   failNextStarts(errors: HubCallError[]): void {
     this.queuedStartFailures.push(...errors)
+  }
+
+  /** Test helper: sends wait (a slow network) until `releaseSends`. */
+  holdSends(): void {
+    if (this.sendGate) return
+    this.sendGate = new Promise((resolve) => (this.openSendGate = resolve))
+  }
+
+  releaseSends(): void {
+    this.openSendGate?.()
+    this.sendGate = null
+    this.openSendGate = null
+  }
+
+  /** Test helper: the next `sendMessage` calls fail with these codes, one per call, in order. */
+  failNextSends(codes: HubErrorCode[]): void {
+    this.queuedSendFailures.push(...codes.map((code) => new HubCallError(code)))
   }
 
   /** Test inspection: how many times the client tried to start the connection. */

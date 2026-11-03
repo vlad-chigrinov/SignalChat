@@ -137,6 +137,32 @@ describe('FakeChatHub', () => {
     expect(states).toEqual(['reconnecting', 'connected'])
   })
 
+  it('keeps a send pending while sends are held and completes it on release', async () => {
+    const hub = connectedHub()
+    await hub.start()
+    hub.holdSends()
+
+    let acked = false
+    const pending = hub.sendMessage('room-general', 'медленно').then(() => (acked = true))
+    await Promise.resolve()
+    expect(acked).toBe(false)
+
+    hub.releaseSends()
+    await pending
+    expect(acked).toBe(true)
+  })
+
+  it('fails the next sends with the queued codes, one per call, then recovers', async () => {
+    const hub = connectedHub()
+    await hub.start()
+    hub.failNextSends(['rate_limited'])
+
+    await expect(hub.sendMessage('room-general', 'раз')).rejects.toMatchObject({
+      code: 'rate_limited',
+    })
+    await expect(hub.sendMessage('room-general', 'два')).resolves.toMatchObject({ text: 'два' })
+  })
+
   it('records typing calls in order', async () => {
     const hub = connectedHub()
     await hub.start()
